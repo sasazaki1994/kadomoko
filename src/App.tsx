@@ -38,10 +38,10 @@ export default function App() {
   }, [catchUpOffline]);
 
   useEffect(() => {
-    const expanded = panelOpen || devPanelOpen;
+    const expanded = panelOpen || devPanelOpen || menuOpen;
     const size = expanded ? WINDOW_EXPANDED : WINDOW_NORMAL;
     void window.kadomoco?.setWindowSize(size, size);
-  }, [panelOpen, devPanelOpen]);
+  }, [panelOpen, devPanelOpen, menuOpen]);
 
   if (!loaded) {
     return <div className="app-root" />;
