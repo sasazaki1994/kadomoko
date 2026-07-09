@@ -1,0 +1,271 @@
+/* --- character --- */
+.pet-wrap {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 128px;
+  height: 128px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  cursor: grab;
+}
+
+.pet-wrap:active {
+  cursor: grabbing;
+}
+
+.pet-sprite {
+  width: 64px;
+  height: 64px;
+  background-repeat: no-repeat;
+  background-size: 256px 512px;
+  image-rendering: pixelated;
+  transform: scale(2);
+  transform-origin: bottom center;
+  animation: sprite-frames 0.9s steps(4) infinite;
+}
+
+@keyframes sprite-frames {
+  from {
+    background-position-x: 0;
+  }
+  to {
+    background-position-x: -256px;
+  }
+}
+
+.pet-prop {
+  position: absolute;
+  top: 4px;
+  right: 14px;
+  font-size: 14px;
+  color: #e8b74a;
+  animation: prop-twinkle 0.8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes prop-twinkle {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.level-up {
+  filter: drop-shadow(0 0 6px rgba(242, 201, 160, 0.9));
+}
+
+/* --- effect animations (applied to the wrapper) --- */
+.effect-wiggle {
+  animation: fx-wiggle 0.5s ease-in-out 2;
+}
+
+@keyframes fx-wiggle {
+  0%,
+  100% {
+    transform: translateX(-50%) rotate(0deg);
+  }
+  25% {
+    transform: translateX(-50%) rotate(-6deg);
+  }
+  75% {
+    transform: translateX(-50%) rotate(6deg);
+  }
+}
+
+.effect-hop {
+  animation: fx-hop 0.5s ease-out 3;
+}
+
+@keyframes fx-hop {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  40% {
+    transform: translateX(-50%) translateY(-14px);
+  }
+}
+
+.effect-spin {
+  animation: fx-spin 0.8s ease-in-out 1;
+}
+
+@keyframes fx-spin {
+  from {
+    transform: translateX(-50%) rotate(0);
+  }
+  to {
+    transform: translateX(-50%) rotate(360deg);
+  }
+}
+
+.effect-peek {
+  animation: fx-peek 4s ease-in-out 1;
+}
+
+@keyframes fx-peek {
+  0%,
+  100% {
+    transform: translateX(-50%);
+  }
+  25%,
+  75% {
+    transform: translateX(10%);
+  }
+}
+
+.effect-curl {
+  animation: fx-curl 4s ease-in-out 1;
+}
+
+@keyframes fx-curl {
+  0%,
+  100% {
+    transform: translateX(-50%) scaleY(1);
+  }
+  30%,
+  70% {
+    transform: translateX(-50%) scaleY(0.85);
+  }
+}
+
+.effect-stretch {
+  animation: fx-stretch 2.5s ease-in-out 1;
+}
+
+@keyframes fx-stretch {
+  0%,
+  100% {
+    transform: translateX(-50%) scaleY(1);
+  }
+  40% {
+    transform: translateX(-50%) scaleY(1.12) scaleX(0.95);
+  }
+}
+
+.effect-gaze {
+  animation: fx-gaze 3s ease-in-out 1;
+}
+
+@keyframes fx-gaze {
+  0%,
+  100% {
+    transform: translateX(-50%) rotate(0);
+  }
+  30%,
+  70% {
+    transform: translateX(-50%) rotate(-4deg) translateY(-2px);
+  }
+}
+
+.effect-doze {
+  animation: fx-doze 4s ease-in-out 1;
+}
+
+@keyframes fx-doze {
+  0%,
+  100% {
+    transform: translateX(-50%) rotate(0);
+  }
+  50% {
+    transform: translateX(-50%) rotate(5deg) translateY(3px);
+  }
+}
+
+.idle-sway {
+  animation: fx-sway 3.5s ease-in-out infinite;
+}
+
+@keyframes fx-sway {
+  0%,
+  100% {
+    transform: translateX(-50%) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateX(-50%) rotate(1.5deg);
+  }
+}
+
+/* --- CSS fallback pet (when the sprite sheet is missing) --- */
+.pet-fallback {
+  position: relative;
+  width: 88px;
+  height: 72px;
+  background: radial-gradient(circle at 42% 35%, #f7ead6, #f2e0c8 60%, #e3ccae);
+  border: 2px solid #8a7a6e;
+  border-radius: 48% 48% 46% 46% / 55% 55% 45% 45%;
+  animation: fallback-bob 1.6s ease-in-out infinite;
+}
+
+@keyframes fallback-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.pet-fallback .nub {
+  position: absolute;
+  top: -10px;
+  width: 12px;
+  height: 16px;
+  background: #f2e0c8;
+  border: 2px solid #8a7a6e;
+  border-radius: 50% 50% 40% 40%;
+}
+
+.pet-fallback .nub-left {
+  left: 18px;
+  transform: rotate(-8deg);
+}
+
+.pet-fallback .nub-right {
+  right: 18px;
+  transform: rotate(8deg);
+}
+
+.pet-fallback .eye {
+  position: absolute;
+  top: 26px;
+  width: 6px;
+  height: 8px;
+  background: #554a46;
+  border-radius: 50%;
+}
+
+.pet-fallback .eye.closed {
+  height: 2px;
+  top: 30px;
+  border-radius: 2px;
+}
+
+.pet-fallback .eye-left {
+  left: 26px;
+}
+
+.pet-fallback .eye-right {
+  right: 26px;
+}
+
+.pet-fallback .mouth {
+  position: absolute;
+  top: 42px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 3px;
+  background: #ac7a6e;
+  border-radius: 0 0 4px 4px;
+}
