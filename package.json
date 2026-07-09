@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "preview": "vite preview",
-    "generate:sheet": "node scripts/generate-placeholder-sheet.mjs"
+    "generate:sheet": "node scripts/generate-placeholder-sheet.mjs",
+    "test": "rm -rf .tmp-tests && tsc -p tsconfig.test.json && node --test .tmp-tests/test/**/*.test.js"
   },
   "dependencies": {
     "electron-store": "^8.2.0",
