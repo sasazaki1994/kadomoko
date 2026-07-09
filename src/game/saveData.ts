@@ -2,7 +2,18 @@ import { DEFAULT_REACTION_IDS } from './data/reactions';
 import { localDateString, rollDailyTasks } from './dailyTasks';
 import { EMPTY_CARE_STATS } from './personality';
 import { INITIAL_VITALS } from './vitals';
-import type { PetState, SaveData, SaveSettings } from './types';
+import type {
+  CareActionId,
+  CurrentAction,
+  DailyTaskId,
+  DailyTasksState,
+  Personality,
+  PersonalityHistoryEntry,
+  PetState,
+  PetVitals,
+  SaveData,
+  SaveSettings,
+} from './types';
 
 export const CURRENT_SAVE_VERSION = 1;
 
@@ -43,28 +54,164 @@ export function createInitialSave(now: number): SaveData {
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function finiteNumber(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function vital(value: unknown, fallback: number): number {
+  return Math.min(100, Math.max(0, Math.round(finiteNumber(value, fallback))));
+}
+
+function sanitizeVitals(raw: unknown, fallback: PetVitals): PetVitals {
+  const data = isRecord(raw) ? raw : {};
+  return {
+    hunger: vital(data.hunger, fallback.hunger),
+    mood: vital(data.mood, fallback.mood),
+    sleepiness: vital(data.sleepiness, fallback.sleepiness),
+    affection: vital(data.affection, fallback.affection),
+  };
+}
+
+function sanitizeSettings(raw: unknown): SaveSettings {
+  const data = isRecord(raw) ? raw : {};
+  return {
+    alwaysOnTop: typeof data.alwaysOnTop === 'boolean' ? data.alwaysOnTop : DEFAULT_SETTINGS.alwaysOnTop,
+    volume: vital(data.volume, DEFAULT_SETTINGS.volume),
+  };
+}
+
+function sanitizeStringArray(value: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(value)) return fallback;
+  return value.filter((item): item is string => typeof item === 'string');
+}
+
+const PERSONALITIES: readonly Personality[] = [
+  'normal',
+  'sweet',
+  'energetic',
+  'relaxed',
+  'moody',
+  'sulky',
+  'calm',
+];
+
+function sanitizePersonality(value: unknown, fallback: Personality): Personality {
+  return typeof value === 'string' && PERSONALITIES.includes(value as Personality)
+    ? (value as Personality)
+    : fallback;
+}
+
+function sanitizeCurrentAction(value: unknown, fallback: CurrentAction): CurrentAction {
+  return value === 'none' || value === 'sleeping' ? value : fallback;
+}
+
+const DAILY_TASK_IDS: readonly DailyTaskId[] = [
+  'feed_once',
+  'touch_once',
+  'play_once',
+  'rest_once',
+  'together_30min',
+  'good_mood_15min',
+];
+
+function sanitizeDailyTasks(raw: unknown, fallback: DailyTasksState): DailyTasksState {
+  const data = isRecord(raw) ? raw : {};
+  const rawTasks = Array.isArray(data.tasks) ? data.tasks : [];
+  const tasks = rawTasks
+    .filter(isRecord)
+    .filter((task): task is { id: DailyTaskId; completed: unknown } =>
+      typeof task.id === 'string' && DAILY_TASK_IDS.includes(task.id as DailyTaskId),
+    )
+    .map((task) => ({ id: task.id, completed: task.completed === true }));
+
+  return {
+    date: typeof data.date === 'string' ? data.date : fallback.date,
+    tasks: tasks.length > 0 ? tasks : fallback.tasks,
+    togetherMsToday: Math.max(0, finiteNumber(data.togetherMsToday, fallback.togetherMsToday)),
+    goodMoodStreakMs: Math.max(0, finiteNumber(data.goodMoodStreakMs, fallback.goodMoodStreakMs)),
+  };
+}
+
+function sanitizeCareStats(raw: unknown, fallback: PetState['careStats']): PetState['careStats'] {
+  const data = isRecord(raw) ? raw : {};
+  return {
+    feedCount: Math.max(0, Math.round(finiteNumber(data.feedCount, fallback.feedCount))),
+    touchCount: Math.max(0, Math.round(finiteNumber(data.touchCount, fallback.touchCount))),
+    playCount: Math.max(0, Math.round(finiteNumber(data.playCount, fallback.playCount))),
+    restCount: Math.max(0, Math.round(finiteNumber(data.restCount, fallback.restCount))),
+    neglectTimeMs: Math.max(0, finiteNumber(data.neglectTimeMs, fallback.neglectTimeMs)),
+    activeTogetherTimeMs: Math.max(
+      0,
+      finiteNumber(data.activeTogetherTimeMs, fallback.activeTogetherTimeMs),
+    ),
+    lowHungerTimeMs: Math.max(0, finiteNumber(data.lowHungerTimeMs, fallback.lowHungerTimeMs)),
+  };
+}
+
+function sanitizeLastActionAt(raw: unknown): PetState['lastActionAt'] {
+  if (!isRecord(raw)) return {};
+  const result: Partial<Record<CareActionId, number>> = {};
+  for (const action of ['feed', 'touch', 'play', 'rest'] as const) {
+    if (typeof raw[action] === 'number' && Number.isFinite(raw[action])) {
+      result[action] = raw[action];
+    }
+  }
+  return result;
+}
+
+function sanitizePersonalityHistory(raw: unknown): PersonalityHistoryEntry[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(isRecord).flatMap((entry) => {
+    if (typeof entry.date !== 'string') return [];
+    return [{ date: entry.date, tendency: sanitizePersonality(entry.tendency, 'normal') }];
+  });
+}
+
 /**
  * Validates loaded data. Unknown versions or malformed data fall back to a
  * fresh save so the app never crashes on corrupted storage.
  */
 export function sanitizeSave(raw: unknown, now: number): SaveData {
-  if (!raw || typeof raw !== 'object') return createInitialSave(now);
-  const data = raw as Partial<SaveData>;
-  if (data.version !== CURRENT_SAVE_VERSION || !data.pet) return createInitialSave(now);
+  if (!isRecord(raw)) return createInitialSave(now);
+  if (raw.version !== CURRENT_SAVE_VERSION || !isRecord(raw.pet)) return createInitialSave(now);
 
   const fresh = createInitialPetState(now);
+  const rawPet = raw.pet;
   const pet: PetState = {
     ...fresh,
-    ...data.pet,
-    vitals: { ...fresh.vitals, ...data.pet.vitals },
-    careStats: { ...fresh.careStats, ...data.pet.careStats },
-    dailyTasks: { ...fresh.dailyTasks, ...data.pet.dailyTasks },
-    lastActionAt: { ...data.pet.lastActionAt },
+    vitals: sanitizeVitals(rawPet.vitals, fresh.vitals),
+    exp: Math.max(0, Math.round(finiteNumber(rawPet.exp, fresh.exp))),
+    level: Math.min(5, Math.max(1, Math.round(finiteNumber(rawPet.level, fresh.level)))),
+    currentAction: sanitizeCurrentAction(rawPet.currentAction, fresh.currentAction),
+    careStats: sanitizeCareStats(rawPet.careStats, fresh.careStats),
+    personality: sanitizePersonality(rawPet.personality, fresh.personality),
+    personalityHistory: sanitizePersonalityHistory(rawPet.personalityHistory),
+    unlockedReactionIds: sanitizeStringArray(rawPet.unlockedReactionIds, fresh.unlockedReactionIds),
+    unlockedIdleMotionIds: sanitizeStringArray(
+      rawPet.unlockedIdleMotionIds,
+      fresh.unlockedIdleMotionIds,
+    ),
+    unlockedSpeechPackIds: sanitizeStringArray(
+      rawPet.unlockedSpeechPackIds,
+      fresh.unlockedSpeechPackIds,
+    ),
+    unlockedPropIds: sanitizeStringArray(rawPet.unlockedPropIds, fresh.unlockedPropIds),
+    dailyTasks: sanitizeDailyTasks(rawPet.dailyTasks, fresh.dailyTasks),
+    lastUpdatedAt: finiteNumber(rawPet.lastUpdatedAt, fresh.lastUpdatedAt),
+    lastCareAt: finiteNumber(rawPet.lastCareAt, fresh.lastCareAt),
+    lastActionAt: sanitizeLastActionAt(rawPet.lastActionAt),
+    pendingDecayMs: Math.max(0, finiteNumber(rawPet.pendingDecayMs, fresh.pendingDecayMs)),
+    highMoodMs: Math.max(0, finiteNumber(rawPet.highMoodMs, fresh.highMoodMs)),
+    lastRandomEventAt: finiteNumber(rawPet.lastRandomEventAt, fresh.lastRandomEventAt),
   };
   return {
     version: CURRENT_SAVE_VERSION,
     pet,
-    settings: { ...DEFAULT_SETTINGS, ...data.settings },
-    lastLaunchedAt: typeof data.lastLaunchedAt === 'number' ? data.lastLaunchedAt : now,
+    settings: sanitizeSettings(raw.settings),
+    lastLaunchedAt: finiteNumber(raw.lastLaunchedAt, now),
   };
 }
