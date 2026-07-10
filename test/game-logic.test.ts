@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { appendEpisodeEntries, createEpisodeCandidates, sanitizeEpisodeEntries } from '../src/game/episodes';
+import { buildRelationshipNote } from '../src/game/relationship';
+import { appendWeeklyReflection, createWeeklyReflection } from '../src/game/weeklyReflection';
 import { performCareAction } from '../src/game/actions';
 import { getAvailableContextAction, performContextAction } from '../src/game/contextActions';
 import { buildDailySummary } from '../src/game/dailySummary';
@@ -385,4 +388,79 @@ test('v3 save migration fills settings and strips invalid context action keys', 
   assert.equal(save.settings.bubbleFrequency, 'normal');
   assert.equal(save.settings.reduceActivityWhenFullscreen, true);
   assert.deepEqual(save.pet.lastContextActionAt, { give_space: NOW });
+});
+
+
+test('episode candidates follow care and quiet conditions', () => {
+  const p = pet({
+    vitals: { hunger: 70, mood: 75, sleepiness: 20, affection: 30 },
+    careStats: { ...EMPTY_CARE_STATS, playCount: 2, activeTogetherTimeMs: 31 * 60_000 },
+  });
+  const candidates = createEpisodeCandidates(p, 'day_rollover', NOW);
+  assert.ok(candidates.some((e) => e.id === 'first_quiet_day'));
+  assert.ok(candidates.some((e) => e.id === 'played_again' || e.id === 'stayed_together'));
+  assert.ok(candidates.length <= 2);
+});
+
+test('episode append avoids duplicates and caps per day and total', () => {
+  const first = createEpisodeCandidates(pet({ vitals: { hunger: 70, mood: 75, sleepiness: 20, affection: 10 } }), 'day_rollover', NOW);
+  const duplicated = appendEpisodeEntries(first, first);
+  assert.equal(duplicated.length, first.length);
+  const many = Array.from({ length: 70 }, (_, i) => ({ ...first[0], date: `2026-05-${String((i % 28) + 1).padStart(2, '0')}`, id: (i % 2 ? 'played_again' : 'first_quiet_day') as const }));
+  const capped = appendEpisodeEntries([], many, { maxEntries: 60 });
+  assert.equal(capped.length, 60);
+});
+
+test('episode sanitize trims long text and drops invalid entries', () => {
+  const clean = sanitizeEpisodeEntries([
+    { id: 'bad', date: '2026-07-09', title: 'x', text: 'x', trigger: 'day_rollover' },
+    { id: 'first_quiet_day', date: 'bad', title: 'x', text: 'x', trigger: 'day_rollover' },
+    { id: 'first_quiet_day', date: '2026-07-09', title: 't'.repeat(99), text: 'x'.repeat(99), trigger: 'day_rollover', relatedMemoryFlagIds: ['ok', '../bad'], relatedHabitatItemIds: ['glow_speck'] },
+  ]);
+  assert.equal(clean.length, 1);
+  assert.ok(clean[0].title.length <= 24);
+  assert.ok(clean[0].text.length <= 80);
+  assert.deepEqual(clean[0].relatedMemoryFlagIds, ['ok']);
+});
+
+test('weekly reflection summarizes task totals, care action, tone and caps history', () => {
+  const journals = Array.from({ length: 7 }, (_, i) => ({
+    date: `2026-07-${String(i + 1).padStart(2, '0')}`,
+    careCounts: { feed: 0, touch: 0, play: 2, rest: 0 },
+    finalVitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 10 },
+    personality: 'energetic' as const,
+    completedTaskCount: 2,
+    note: 'ゆっくり過ごした',
+  }));
+  const reflection = createWeeklyReflection(journals, [{ id: 'played_again', date: '2026-07-02', title: 't', text: 'また少し跳ねていた。', trigger: 'day_rollover', relatedMemoryFlagIds: [], relatedHabitatItemIds: [] }], '2026-07-01');
+  assert.ok(reflection);
+  assert.equal(reflection.completedTaskTotal, 14);
+  assert.equal(reflection.mostFrequentCareAction, 'play');
+  assert.ok(['calm', 'active', 'restful', 'mixed'].includes(reflection.tone));
+  assert.equal(/もっと|未達成|放置|評価|低い|ランク|スコア/.test(reflection.summary), false);
+  const history = Array.from({ length: 13 }, (_, i) => ({ ...reflection, weekStartDate: `2026-${String(i + 1).padStart(2, '0')}-01` })).reduce<NonNullable<typeof reflection>[]>((acc, x) => appendWeeklyReflection(acc, x), []);
+  assert.equal(history.length, 12);
+});
+
+test('relationship note changes without rank or score language', () => {
+  assert.equal(buildRelationshipNote(pet({ vitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 80 }, personality: 'calm' })).label, '静かに近くにいる相棒');
+  assert.equal(buildRelationshipNote(pet({ vitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 30 }, personality: 'energetic' })).label, 'よく遊ぶ小さな相棒');
+  assert.equal(buildRelationshipNote(pet({ vitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 30 }, personality: 'relaxed' })).label, '休むのが上手な相棒');
+  assert.equal(buildRelationshipNote(pet({ vitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 30 }, personality: 'sulky' })).label, '気まぐれな小さな相棒');
+  assert.equal(/ランク|スコア|S|A|B/.test(buildRelationshipNote(pet()).label), false);
+});
+
+test('v4 migration fills and sanitizes episode and weekly reflection fields', () => {
+  const old = sanitizeSave({ version: 3, pet: createInitialPetState(NOW), settings: { alwaysOnTop: false, volume: 50 }, lastLaunchedAt: NOW }, NOW);
+  assert.deepEqual(old.pet.episodes, []);
+  assert.deepEqual(old.pet.weeklyReflections, []);
+  const current = sanitizeSave({
+    version: CURRENT_SAVE_VERSION,
+    pet: { ...createInitialPetState(NOW), vitals: { hunger: 22, mood: 33, sleepiness: 44, affection: 55 }, episodes: [{ id: 'bad' }, { id: 'first_quiet_day', date: '2026-07-09', title: '静かな日', text: '静かに過ごした日。', trigger: 'day_rollover' }], weeklyReflections: [{ bad: true }] },
+    settings: { alwaysOnTop: false, volume: 50 },
+    lastLaunchedAt: NOW,
+  }, NOW);
+  assert.deepEqual(current.pet.vitals, { hunger: 22, mood: 33, sleepiness: 44, affection: 55 });
+  assert.equal(current.pet.episodes.length, 1);
+  assert.equal(current.pet.weeklyReflections.length, 0);
 });

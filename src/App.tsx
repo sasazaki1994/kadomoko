@@ -3,6 +3,7 @@ import DevToolsPanel from './components/DevToolsPanel';
 import PetCharacter from './components/PetCharacter';
 import PetMenu from './components/PetMenu';
 import SpeechBubble from './components/SpeechBubble';
+import RecordPanel from './components/RecordPanel';
 import StatusPanel from './components/StatusPanel';
 import { BALANCE } from './game/data/balance';
 import { usePetStore } from './store/usePetStore';
@@ -17,6 +18,7 @@ export default function App() {
   const panelOpen = usePetStore((s) => s.panelOpen);
   const menuOpen = usePetStore((s) => s.menuOpen);
   const devPanelOpen = usePetStore((s) => s.devPanelOpen);
+  const recordPanelOpen = usePetStore((s) => s.recordPanelOpen);
   const init = usePetStore((s) => s.init);
   const tick = usePetStore((s) => s.tick);
   const catchUpOffline = usePetStore((s) => s.catchUpOffline);
@@ -38,10 +40,10 @@ export default function App() {
   }, [catchUpOffline]);
 
   useEffect(() => {
-    const expanded = panelOpen || devPanelOpen || menuOpen;
+    const expanded = panelOpen || devPanelOpen || menuOpen || recordPanelOpen;
     const size = expanded ? WINDOW_EXPANDED : WINDOW_NORMAL;
     void window.kadomoco?.setWindowSize(size, size);
-  }, [panelOpen, devPanelOpen, menuOpen]);
+  }, [panelOpen, devPanelOpen, menuOpen, recordPanelOpen]);
 
   if (!loaded) {
     return <div className="app-root" />;
@@ -59,6 +61,7 @@ export default function App() {
       <PetCharacter />
       {menuOpen && <PetMenu />}
       {panelOpen && <StatusPanel />}
+      {recordPanelOpen && <RecordPanel />}
       {isDevMode && devPanelOpen && <DevToolsPanel />}
       {isDevMode && (
         <button

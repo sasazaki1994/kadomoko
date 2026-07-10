@@ -1,3 +1,5 @@
+import { appendEpisodeEntries, createEpisodeCandidates } from './episodes';
+import { appendWeeklyReflection, createWeeklyReflection } from './weeklyReflection';
 import { applyCompletedTasks } from './actions';
 import { createDailyJournalEntry } from './dailySummary';
 import { BALANCE, THRESHOLDS } from './data/balance';
@@ -8,6 +10,12 @@ import { applyVitalDelta, clampVital } from './vitals';
 import type { PetState, TimeProgressResult } from './types';
 
 const PERSONALITY_HISTORY_LIMIT = 14;
+
+function addLocalDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export type TimeProgressOptions = {
   /** True for live ticks; false when catching up time the app was closed. */
@@ -123,10 +131,11 @@ export function progressTime(
   let dayRolledOver = false;
   if (next.dailyTasks.date !== today) {
     dayRolledOver = true;
+    const previousDate = next.dailyTasks.date;
     const tendency = computeTendency(next.careStats, next.vitals.mood);
     const history = [
       ...next.personalityHistory,
-      { date: next.dailyTasks.date, tendency },
+      { date: previousDate, tendency },
     ].slice(-PERSONALITY_HISTORY_LIMIT);
     next = {
       ...next,
@@ -135,6 +144,13 @@ export function progressTime(
       careStats: { ...EMPTY_CARE_STATS },
       dailyTasks: rollDailyTasks(today, rng),
       journalEntries: [...next.journalEntries, createDailyJournalEntry(next)].slice(-30),
+    };
+    const episodes = appendEpisodeEntries(next.episodes, createEpisodeCandidates(next, 'day_rollover', pet.lastUpdatedAt));
+    const weekReflection = createWeeklyReflection(next.journalEntries, episodes, addLocalDays(previousDate, -6));
+    next = {
+      ...next,
+      episodes,
+      weeklyReflections: weekReflection ? appendWeeklyReflection(next.weeklyReflections, weekReflection) : next.weeklyReflections,
     };
   }
 

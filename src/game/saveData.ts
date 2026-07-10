@@ -1,3 +1,4 @@
+import { sanitizeEpisodeEntries } from './episodes';
 import { DEFAULT_REACTION_IDS } from './data/reactions';
 import { localDateString, rollDailyTasks } from './dailyTasks';
 import { EMPTY_CARE_STATS } from './personality';
@@ -18,9 +19,10 @@ import type {
   AmbientFrequency,
   BubbleFrequency,
   ContextActionId,
+  WeeklyReflection,
 } from './types';
 
-export const CURRENT_SAVE_VERSION = 3;
+export const CURRENT_SAVE_VERSION = 4;
 
 export const DEFAULT_SETTINGS: SaveSettings = {
   alwaysOnTop: false,
@@ -53,6 +55,8 @@ export function createInitialPetState(now: number): PetState {
     highMoodMs: 0,
     lastRandomEventAt: now,
     journalEntries: [],
+    episodes: [],
+    weeklyReflections: [],
   };
 }
 
@@ -211,6 +215,24 @@ function sanitizePersonalityHistory(raw: unknown): PersonalityHistoryEntry[] {
   });
 }
 
+function sanitizeWeeklyReflections(raw: unknown): WeeklyReflection[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(isRecord).flatMap((entry) => {
+    if (typeof entry.weekStartDate !== 'string' || typeof entry.weekEndDate !== 'string' || typeof entry.summary !== 'string') return [];
+    const tone = enumValue(entry.tone, ['calm', 'active', 'restful', 'mixed'] as const, 'mixed');
+    const action = enumValue(entry.mostFrequentCareAction, ['feed', 'touch', 'play', 'rest'] as const, 'feed');
+    return [{
+      weekStartDate: entry.weekStartDate,
+      weekEndDate: entry.weekEndDate,
+      summary: entry.summary.slice(0, 60),
+      dominantPersonality: sanitizePersonality(entry.dominantPersonality, 'normal'),
+      completedTaskTotal: Math.max(0, Math.round(finiteNumber(entry.completedTaskTotal, 0))),
+      mostFrequentCareAction: entry.mostFrequentCareAction === null ? null : action,
+      tone,
+    }];
+  }).slice(-12);
+}
+
 function sanitizeJournalEntries(raw: unknown): DailyJournalEntry[] {
   if (!Array.isArray(raw)) return [];
   return raw.filter(isRecord).flatMap((entry) => {
@@ -236,7 +258,8 @@ export function migrateSave(raw: unknown): unknown {
   if (!isRecord(raw)) return null;
   if (raw.version === CURRENT_SAVE_VERSION) return raw;
   if (raw.version === 1) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, journalEntries: [], lastContextActionAt: {} } : raw.pet };
-  if (raw.version === 2) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, lastContextActionAt: {} } : raw.pet };
+  if (raw.version === 2) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, lastContextActionAt: {}, episodes: [], weeklyReflections: [] } : raw.pet };
+  if (raw.version === 3) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, episodes: [], weeklyReflections: [] } : raw.pet };
   return null;
 }
 
@@ -275,6 +298,8 @@ function sanitizeCurrentVersionSave(raw: unknown, now: number): SaveData | null 
     highMoodMs: Math.max(0, finiteNumber(rawPet.highMoodMs, fresh.highMoodMs)),
     lastRandomEventAt: finiteNumber(rawPet.lastRandomEventAt, fresh.lastRandomEventAt),
     journalEntries: sanitizeJournalEntries(rawPet.journalEntries),
+    episodes: sanitizeEpisodeEntries(rawPet.episodes),
+    weeklyReflections: sanitizeWeeklyReflections(rawPet.weeklyReflections),
   };
   return {
     version: CURRENT_SAVE_VERSION,
