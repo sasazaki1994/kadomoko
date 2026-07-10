@@ -12,7 +12,9 @@ import { BALANCE } from '../src/game/data/balance';
 import { getDayPeriod, getLifeRhythmHints, getSeason } from '../src/game/lifeRhythm';
 import { describeVitals } from '../src/game/observation';
 import { getRandomEventWeight, pickWeightedRandomEvent, type RandomEventContext } from '../src/game/randomEvents';
-import { dailyTaskCompletionBubble, getDailyTaskProgress, rollDailyTasks } from '../src/game/dailyTasks';
+import { dailyTaskCompletionBubble, getDailyTaskProgress, localDateString, rollDailyTasks } from '../src/game/dailyTasks';
+import { applySecretSignalReaction, createEmptySignalState, detectSecretSignals, recordSignalInput, sanitizeSignalState } from '../src/game/signals';
+import { advanceTinyPlay, createEmptyTinyPlayState, maybeStartTinyPlay, sanitizeTinyPlayState } from '../src/game/tinyPlays';
 import { gainExp, LEVEL_REQUIREMENTS } from '../src/game/level';
 import { computeTendency, EMPTY_CARE_STATS, resolvePersonality } from '../src/game/personality';
 import { CURRENT_SAVE_VERSION, createInitialPetState, recoverSave, sanitizeSave } from '../src/game/saveData';
@@ -351,7 +353,7 @@ test('daily summary is short, never empty, and avoids blaming language', () => {
   const summary = buildDailySummary(pet({
     vitals: { hunger: 10, mood: 85, sleepiness: 90, affection: 10 },
     careStats: { ...EMPTY_CARE_STATS, activeTogetherTimeMs: 3 * 60 * 60_000 },
-  }), NOW);
+  }));
   assert.ok(summary.length >= 1);
   assert.ok(summary.length <= 3);
   assert.ok(summary.includes('少し眠そう'));
@@ -617,11 +619,8 @@ test('quiet ambient frequency lowers discovery roll chance', () => {
   assert.equal(quiet.created, false);
 });
 
-import { applySecretSignalReaction, createEmptySignalState, detectSecretSignals, recordSignalInput, sanitizeSignalState } from '../src/game/signals';
-import { advanceTinyPlay, createEmptyTinyPlayState, maybeStartTinyPlay, sanitizeTinyPlayState } from '../src/game/tinyPlays';
-
 test('secret signals trim recent events, drop old events, and sanitize ids', () => {
-  const raw = { date: '2026-07-09', recentEvents: Array.from({ length: 25 }, (_, i) => ({ input: 'click', at: NOW - i * 100 })), lastTriggeredAt: { tap_tap_pause: NOW, bad: NOW }, triggeredToday: ['tap_tap_pause', 'bad', 'tap_tap_pause'] };
+  const raw = { date: localDateString(NOW), recentEvents: Array.from({ length: 25 }, (_, i) => ({ input: 'click', at: NOW - i * 100 })), lastTriggeredAt: { tap_tap_pause: NOW, bad: NOW }, triggeredToday: ['tap_tap_pause', 'bad', 'tap_tap_pause'] };
   const clean = sanitizeSignalState(raw, NOW);
   assert.equal(clean.recentEvents.length, 20);
   assert.deepEqual(clean.triggeredToday, ['tap_tap_pause']);
@@ -659,7 +658,7 @@ test('tiny plays start, avoid duplicates, end naturally, and sanitize ids', () =
   assert.equal(ended.ended, true);
   assert.equal(ended.pet.tinyPlay.completedToday.length, 1);
   assert.equal(advanceTinyPlay(ended.pet, NOW + 11_000).pet.tinyPlay.completedToday.length, 1);
-  assert.deepEqual(sanitizeTinyPlayState({ date: '2026-07-09', completedToday: ['follow_dot', 'bad', 'follow_dot'], active: { id: 'bad' } }, NOW).completedToday, ['follow_dot']);
+  assert.deepEqual(sanitizeTinyPlayState({ date: localDateString(NOW), completedToday: ['follow_dot', 'bad', 'follow_dot'], active: { id: 'bad' } }, NOW).completedToday, ['follow_dot']);
 });
 
 test('tiny plays avoid sleeping and quiet frequency can suppress starts', () => {
@@ -667,7 +666,7 @@ test('tiny plays avoid sleeping and quiet frequency can suppress starts', () => 
   assert.equal(maybeStartTinyPlay(sleeping, NOW, { force: true }).started, false);
   const quiet = pet({ tinyPlay: createEmptyTinyPlayState(NOW) });
   assert.equal(maybeStartTinyPlay(quiet, NOW, { ambientFrequency: 'quiet', rng: () => 0.9 }).started, false);
-  assert.deepEqual(sanitizeTinyPlayState({ date: '2026-07-08', completedToday: ['follow_dot'] }, NOW).completedToday, []);
+  assert.deepEqual(sanitizeTinyPlayState({ date: localDateString(NOW - 24 * 60 * 60_000), completedToday: ['follow_dot'] }, NOW).completedToday, []);
 });
 
 test('v6 migration adds and sanitizes signal and tiny play state without losing pet data', () => {
@@ -678,4 +677,24 @@ test('v6 migration adds and sanitizes signal and tiny play state without losing 
   assert.deepEqual(save.pet.tinyPlay.completedToday, []);
   const backup = { ...save, pet: { ...save.pet, vitals: { hunger: 22, mood: 44, sleepiness: 55, affection: 66 } } };
   assert.equal(recoverSave({ version: 999 }, backup, NOW).source, 'backup');
+});
+
+test('signal and tiny play daily state track the local calendar date', () => {
+  assert.equal(createEmptySignalState(NOW).date, localDateString(NOW));
+  assert.equal(createEmptyTinyPlayState(NOW).date, localDateString(NOW));
+  const sameDay = sanitizeSignalState({ date: localDateString(NOW), triggeredToday: ['tap_tap_pause'] }, NOW);
+  assert.deepEqual(sameDay.triggeredToday, ['tap_tap_pause']);
+  const nextDay = NOW + 24 * 60 * 60_000;
+  assert.deepEqual(sanitizeSignalState({ date: localDateString(NOW), triggeredToday: ['tap_tap_pause'] }, nextDay).triggeredToday, []);
+  assert.deepEqual(sanitizeTinyPlayState({ date: localDateString(NOW), completedToday: ['follow_dot'] }, nextDay).completedToday, []);
+});
+
+test('look_together and tidy_habitat become reachable through unlocked props', () => {
+  const vitals = { hunger: 70, mood: 70, sleepiness: 20, affection: 10 };
+  assert.equal(getAvailableContextAction(pet({ vitals }), NOW), null);
+  assert.equal(getAvailableContextAction(pet({ vitals, unlockedPropIds: ['old_note'] }), NOW)?.id, 'look_together');
+  assert.equal(getAvailableContextAction(pet({ vitals, unlockedPropIds: ['small_cloth'] }), NOW)?.id, 'tidy_habitat');
+  const tidied = performContextAction(petWithoutDailyTasks({ vitals, unlockedPropIds: ['small_cloth'] }), 'tidy_habitat', NOW + 10_000);
+  assert.equal(tidied.ok, true);
+  assert.equal(tidied.pet.vitals.mood, 74);
 });
