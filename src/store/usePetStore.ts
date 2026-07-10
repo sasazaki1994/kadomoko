@@ -225,6 +225,7 @@ export const usePetStore = create<PetStore>((set, get) => {
         affection: next.vitals.affection,
         currentAction: next.currentAction,
         dayPeriod: hints.dayPeriod,
+        season: hints.season,
         activeTogetherTimeMs: next.careStats.activeTogetherTimeMs,
         lastCareAt: next.lastCareAt,
         episodes: next.episodes,

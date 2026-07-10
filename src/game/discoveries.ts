@@ -37,7 +37,10 @@ export function sanitizeDiscoveryState(raw: unknown, now: number): DiscoveryStat
       active = { id: a.id, date: typeof a.date === 'string' ? a.date : date, kind: def.kind, label: def.label, shortText: def.shortText, relatedEpisodeId: typeof a.relatedEpisodeId === 'string' ? a.relatedEpisodeId : def.episodeId, expiresAt: a.expiresAt };
     }
   }
-  return { active, resolvedToday: active?.date === date ? resolved : resolved, lastRolledAt: typeof data.lastRolledAt === 'number' && Number.isFinite(data.lastRolledAt) ? data.lastRolledAt : now };
+  const lastRolledAt = typeof data.lastRolledAt === 'number' && Number.isFinite(data.lastRolledAt) ? data.lastRolledAt : now;
+  // resolvedToday only lasts for the local day of the last roll; otherwise two
+  // resolutions would block discoveries forever.
+  return { active, resolvedToday: localDate(lastRolledAt) === date ? resolved : [], lastRolledAt };
 }
 
 function hasHintItem(pet: PetState): boolean {

@@ -9,7 +9,7 @@ import { performCareAction } from '../src/game/actions';
 import { getAvailableContextAction, performContextAction } from '../src/game/contextActions';
 import { buildDailySummary } from '../src/game/dailySummary';
 import { BALANCE } from '../src/game/data/balance';
-import { getDayPeriod, getLifeRhythmHints } from '../src/game/lifeRhythm';
+import { getDayPeriod, getLifeRhythmHints, getSeason } from '../src/game/lifeRhythm';
 import { describeVitals } from '../src/game/observation';
 import { getRandomEventWeight, pickWeightedRandomEvent, type RandomEventContext } from '../src/game/randomEvents';
 import { dailyTaskCompletionBubble, getDailyTaskProgress, rollDailyTasks } from '../src/game/dailyTasks';
@@ -18,7 +18,7 @@ import { computeTendency, EMPTY_CARE_STATS, resolvePersonality } from '../src/ga
 import { CURRENT_SAVE_VERSION, createInitialPetState, recoverSave, sanitizeSave } from '../src/game/saveData';
 import { deriveBaseState } from '../src/game/stateMachine';
 import { progressTime } from '../src/game/timeProgress';
-import type { CareStats, PetState } from '../src/game/types';
+import type { CareStats, EpisodeId, PetState } from '../src/game/types';
 import { applyVitalDelta, clampVital } from '../src/game/vitals';
 
 const NOW = new Date('2026-07-09T09:00:00Z').getTime();
@@ -252,6 +252,78 @@ test('life rhythm returns local day periods and quiet hints', () => {
   assert.ok(morning.preferredEventTags.includes('curious'));
 });
 
+test('seasons follow local months and color rhythm hints', () => {
+  assert.equal(getSeason(new Date(2026, 2, 1)), 'spring');
+  assert.equal(getSeason(new Date(2026, 4, 31)), 'spring');
+  assert.equal(getSeason(new Date(2026, 5, 1)), 'summer');
+  assert.equal(getSeason(new Date(2026, 8, 1)), 'autumn');
+  assert.equal(getSeason(new Date(2026, 11, 1)), 'winter');
+  assert.equal(getSeason(new Date(2026, 1, 28)), 'winter');
+
+  const base = pet();
+  const winter = getLifeRhythmHints({
+    now: new Date(2026, 0, 10, 13, 0).getTime(),
+    vitals: base.vitals,
+    personality: base.personality,
+    currentAction: base.currentAction,
+    activeTogetherTimeMs: base.careStats.activeTogetherTimeMs,
+    lastCareAt: base.lastCareAt,
+  });
+  assert.equal(winter.season, 'winter');
+  assert.ok(winter.preferredEventTags.includes('sleepy'));
+  assert.ok(winter.speechCandidates.includes('ぬくぬくしたい'));
+
+  const summer = getLifeRhythmHints({
+    now: new Date(2026, 6, 10, 13, 0).getTime(),
+    vitals: base.vitals,
+    personality: base.personality,
+    currentAction: base.currentAction,
+    activeTogetherTimeMs: base.careStats.activeTogetherTimeMs,
+    lastCareAt: base.lastCareAt,
+  });
+  assert.equal(summer.season, 'summer');
+  assert.ok(summer.preferredEventTags.includes('playing'));
+});
+
+test('seasonal tags gently boost matching random events', () => {
+  const context: RandomEventContext = {
+    now: NOW,
+    vitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 10 },
+    personality: 'normal',
+    affection: 10,
+    currentAction: 'none',
+    dayPeriod: 'daytime',
+    activeTogetherTimeMs: 0,
+    lastCareAt: NOW,
+  };
+  const hop = { id: 'x-hop', state: 'happy', effect: 'hop', durationMs: 1, tags: ['playing', 'hop'], baseWeight: 1 } as const;
+  const doze = { id: 'x-doze', state: 'sleepy', durationMs: 1, tags: ['sleepy', 'sleeping'], baseWeight: 1 } as const;
+  assert.ok(getRandomEventWeight(hop, { ...context, season: 'summer' }) > getRandomEventWeight(hop, { ...context, season: 'autumn' }));
+  assert.ok(getRandomEventWeight(doze, { ...context, season: 'winter' }) > getRandomEventWeight(doze, { ...context, season: 'summer' }));
+});
+
+test('seasonal episodes appear only on calm day rollovers with a free slot', () => {
+  const quiet = pet({ vitals: { hunger: 70, mood: 55, sleepiness: 20, affection: 10 } });
+  const july = new Date(2026, 6, 9, 9, 0).getTime();
+  const rolled = createEpisodeCandidates(quiet, 'day_rollover', july);
+  assert.ok(rolled.some((e) => e.id === 'found_cool_shade'));
+
+  const lowMood = pet({ vitals: { hunger: 70, mood: 40, sleepiness: 20, affection: 10 } });
+  assert.equal(createEpisodeCandidates(lowMood, 'day_rollover', july).some((e) => e.id === 'found_cool_shade'), false);
+  assert.equal(createEpisodeCandidates(quiet, 'random_event', july).some((e) => e.id === 'found_cool_shade'), false);
+
+  const january = new Date(2026, 0, 9, 9, 0).getTime();
+  assert.ok(createEpisodeCandidates(quiet, 'day_rollover', january).some((e) => e.id === 'curled_up_warm'));
+
+  const busy = pet({
+    vitals: { hunger: 70, mood: 75, sleepiness: 20, affection: 30 },
+    careStats: { ...EMPTY_CARE_STATS, playCount: 2, activeTogetherTimeMs: 31 * 60_000 },
+  });
+  const full = createEpisodeCandidates(busy, 'day_rollover', july);
+  assert.equal(full.length, 2);
+  assert.equal(full.some((e) => e.id === 'found_cool_shade'), false);
+});
+
 test('random event weights follow personality and vitals without crashing on empty pools', () => {
   const base: RandomEventContext = {
     now: NOW,
@@ -408,7 +480,11 @@ test('episode append avoids duplicates and caps per day and total', () => {
   const first = createEpisodeCandidates(pet({ vitals: { hunger: 70, mood: 75, sleepiness: 20, affection: 10 } }), 'day_rollover', NOW);
   const duplicated = appendEpisodeEntries(first, first);
   assert.equal(duplicated.length, first.length);
-  const many = Array.from({ length: 70 }, (_, i) => ({ ...first[0], date: `2026-05-${String((i % 28) + 1).padStart(2, '0')}`, id: (i % 2 ? 'played_again' : 'first_quiet_day') as const }));
+  const many = Array.from({ length: 70 }, (_, i) => {
+    const day = Math.floor(i / 2);
+    const date = `2026-${day < 28 ? '05' : '06'}-${String((day % 28) + 1).padStart(2, '0')}`;
+    return { ...first[0], date, id: (i % 2 ? 'played_again' : 'first_quiet_day') as EpisodeId };
+  });
   const capped = appendEpisodeEntries([], many, { maxEntries: 60 });
   assert.equal(capped.length, 60);
 });
@@ -478,8 +554,10 @@ test('discovery rolling creates at most one active entry, expires quietly, and a
   assert.equal(second.pet.discovery.active?.id, rolled.pet.discovery.active?.id);
   const expired = maybeRollDiscovery({ ...rolled.pet, discovery: { ...rolled.pet.discovery, active: { ...rolled.pet.discovery.active!, expiresAt: NOW - 1 } } }, NOW, { rng: () => 0 });
   assert.equal(expired.pet.discovery.active, null);
-  const resolved = resolveDiscovery(rolled.pet, rolled.pet.discovery.active!.id, NOW + 2 * 60 * 60_000).pet;
-  const next = maybeRollDiscovery(resolved, NOW + 3 * 60 * 60_000, { force: true, rng: () => 0 });
+  // Resolve while the discovery is still active (they expire in 10-30 min).
+  const resolved = resolveDiscovery(rolled.pet, rolled.pet.discovery.active!.id, NOW + 65 * 60_000).pet;
+  assert.deepEqual(resolved.discovery.resolvedToday, [rolled.pet.discovery.active!.id]);
+  const next = maybeRollDiscovery(resolved, NOW + 2 * 60 * 60_000, { force: true, rng: () => 0 });
   assert.notEqual(next.pet.discovery.active?.id, rolled.pet.discovery.active?.id);
 });
 

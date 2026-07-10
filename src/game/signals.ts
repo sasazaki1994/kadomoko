@@ -46,9 +46,12 @@ export function detectSecretSignals(pet: PetState, now: number): SecretSignalId[
 
 export function recordSignalInput(pet: PetState, event: SignalEvent, now: number): { pet: PetState; triggered: SecretSignalId[] } {
   const signals = sanitizeSignalState(pet.signals, now);
+  // Signals ending in a deliberate pause (e.g. tap_tap_pause) are only visible
+  // in the history *before* the newest input lands, so detect on both sides.
+  const preTriggered = detectSecretSignals({ ...pet, signals }, now);
   const recentEvents = [...signals.recentEvents, event].filter((e) => now - e.at <= EVENT_TTL_MS).slice(-MAX_SIGNAL_EVENTS);
   let next = { ...pet, signals: { ...signals, recentEvents } };
-  const triggered = detectSecretSignals(next, now);
+  const triggered = preTriggered.length > 0 ? preTriggered : detectSecretSignals(next, now);
   if (triggered.length) next = { ...next, signals: { ...next.signals, lastTriggeredAt: { ...next.signals.lastTriggeredAt, [triggered[0]]: now }, triggeredToday: [...new Set([...next.signals.triggeredToday, triggered[0]])] } };
   return { pet: next, triggered };
 }
