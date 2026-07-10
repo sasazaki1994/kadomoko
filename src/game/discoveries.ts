@@ -1,3 +1,4 @@
+import { localDateString } from './dailyTasks';
 import { appendEpisodeEntries } from './episodes';
 import { getDayPeriod } from './lifeRhythm';
 import { DISCOVERY_BY_ID, DISCOVERY_DEFS, DISCOVERY_IDS } from './data/discoveries';
@@ -8,10 +9,7 @@ const EXPIRE_MIN_MS = 10 * 60_000;
 const EXPIRE_SPAN_MS = 20 * 60_000;
 const MAX_RESOLVED_PER_DAY = 2;
 
-function localDate(now: number): string {
-  const d = new Date(now);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+const localDate = localDateString;
 
 export function isDiscoveryId(value: unknown): value is DiscoveryId {
   return typeof value === 'string' && (DISCOVERY_IDS as readonly string[]).includes(value);

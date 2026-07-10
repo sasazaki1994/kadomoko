@@ -1,4 +1,5 @@
 import { grantExp } from './actions';
+import { localDateString } from './dailyTasks';
 import { SECRET_SIGNAL_DEFS, SECRET_SIGNAL_IDS } from './data/signals';
 import { appendEpisodeEntries } from './episodes';
 import { applyVitalDelta } from './vitals';
@@ -8,7 +9,8 @@ export const MAX_SIGNAL_EVENTS = 20;
 const EVENT_TTL_MS = 10 * 60_000;
 const INPUTS: readonly SignalInput[] = ['click', 'right_click', 'menu_open', 'panel_open', 'pet_dragged', 'context_action', 'care_action'];
 
-function date(now: number) { return new Date(now).toISOString().slice(0, 10); }
+// Local date so the once-per-day reset happens at the user's midnight, not UTC.
+const date = localDateString;
 function n(v: unknown, f: number) { return typeof v === 'number' && Number.isFinite(v) ? v : f; }
 function rec(v: unknown): v is Record<string, unknown> { return !!v && typeof v === 'object' && !Array.isArray(v); }
 function entry(id: SecretSignalId, now: number): EpisodeEntry { return { id: 'answered_secret_signal', date: date(now), title: '小さな合図', text: '小さな合図に反応していた。', trigger: 'secret_signal', relatedMemoryFlagIds: [id], relatedHabitatItemIds: [] }; }

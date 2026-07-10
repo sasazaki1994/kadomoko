@@ -1,4 +1,5 @@
 import { grantExp } from './actions';
+import { localDateString } from './dailyTasks';
 import { TINY_PLAY_DEFS, TINY_PLAY_IDS } from './data/tinyPlays';
 import { appendEpisodeEntries } from './episodes';
 import { deriveBaseState } from './stateMachine';
@@ -8,7 +9,8 @@ const MIN_GAP_MS = 3 * 60 * 60_000;
 const CHANCE = { quiet: 0.004, normal: 0.012, lively: 0.018 } as const;
 /** Keep a just-finished session around so advanceTinyPlay can complete it. */
 const ENDED_GRACE_MS = 10 * 60_000;
-function date(now: number) { return new Date(now).toISOString().slice(0, 10); }
+// Local date so completedToday resets at the user's midnight, not UTC.
+const date = localDateString;
 function rec(v: unknown): v is Record<string, unknown> { return !!v && typeof v === 'object' && !Array.isArray(v); }
 function n(v: unknown, f: number) { return typeof v === 'number' && Number.isFinite(v) ? v : f; }
 function ep(id: TinyPlayId, now: number): EpisodeEntry { const eid = TINY_PLAY_DEFS[id].episodeId ?? 'watched_tiny_play'; return { id: eid, date: date(now), title: eid === 'made_a_small_turn' ? '小さく回る' : '小さな遊び', text: eid === 'played_follow_dot' ? '小さな点を見ていた。' : eid === 'peeked_from_corner' ? '少し隠れて、また出てきた。' : eid === 'made_a_small_turn' ? 'ゆっくり回っていた。' : '小さな遊びをしていた。', trigger: 'tiny_play', relatedMemoryFlagIds: [id], relatedHabitatItemIds: [] }; }
