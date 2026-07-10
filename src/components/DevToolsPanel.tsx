@@ -29,6 +29,10 @@ export default function DevToolsPanel() {
   const devForceDiscovery = usePetStore((s) => s.devForceDiscovery);
   const devResolveDiscovery = usePetStore((s) => s.devResolveDiscovery);
   const devExpireDiscovery = usePetStore((s) => s.devExpireDiscovery);
+  const devForceSignal = usePetStore((s) => s.devForceSignal);
+  const devForceTinyPlay = usePetStore((s) => s.devForceTinyPlay);
+  const devEndTinyPlay = usePetStore((s) => s.devEndTinyPlay);
+  const devResetSignals = usePetStore((s) => s.devResetSignals);
 
   return (
     <div className="dev-panel">
@@ -103,6 +107,12 @@ export default function DevToolsPanel() {
           <button onClick={devExpireDiscovery}>発見を期限切れ</button>
         </div>
         <div className="dev-row dev-buttons">
+          <button onClick={devForceSignal}>合図を強制発生</button>
+          <button onClick={devForceTinyPlay}>小さな遊び開始</button>
+          <button onClick={devEndTinyPlay}>小さな遊び終了</button>
+        </div>
+        <div className="dev-row dev-buttons">
+          <button onClick={devResetSignals}>SignalState初期化</button>
           <button className="danger" onClick={devResetSave}>
             セーブ初期化
           </button>

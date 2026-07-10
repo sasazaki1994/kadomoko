@@ -123,7 +123,12 @@ export type EpisodeId =
   | 'found_paper_echo'
   | 'watched_tiny_mark'
   | 'followed_soft_trace'
-  | 'looked_at_lost_dot';
+  | 'looked_at_lost_dot'
+  | 'answered_secret_signal'
+  | 'played_follow_dot'
+  | 'peeked_from_corner'
+  | 'made_a_small_turn'
+  | 'watched_tiny_play';
 
 export type EpisodeTrigger =
   | 'day_rollover'
@@ -132,7 +137,9 @@ export type EpisodeTrigger =
   | 'habitat_event'
   | 'level_up'
   | 'resume'
-  | 'discovery';
+  | 'discovery'
+  | 'secret_signal'
+  | 'tiny_play';
 
 export type EpisodeEntry = {
   id: EpisodeId;
@@ -204,6 +211,8 @@ export type PetState = {
   episodes: EpisodeEntry[];
   weeklyReflections: WeeklyReflection[];
   discovery: DiscoveryState;
+  signals: SignalState;
+  tinyPlay: TinyPlayState;
 };
 
 export type DiscoveryId =
@@ -319,3 +328,14 @@ export type ClickReactionDef = {
   effect: 'wiggle' | 'hop' | 'spin';
   bubble?: string;
 };
+
+export type SignalInput = 'click' | 'right_click' | 'menu_open' | 'panel_open' | 'pet_dragged' | 'context_action' | 'care_action';
+export type SecretSignalId = 'tap_tap_pause' | 'hello_corner' | 'quiet_check' | 'sleepy_respect' | 'look_and_wait' | 'little_spin';
+export type SignalEvent = { input: SignalInput; at: number; detail?: string };
+export type SecretSignalDef = { id: SecretSignalId; label: string; description: string; windowMs: number; cooldownMs: number };
+export type SignalState = { recentEvents: SignalEvent[]; lastTriggeredAt: Partial<Record<SecretSignalId, number>>; triggeredToday: SecretSignalId[]; date: string };
+
+export type TinyPlayId = 'follow_dot' | 'mirror_bounce' | 'hide_peek' | 'slow_turn' | 'small_parade' | 'counting_blinks';
+export type TinyPlaySession = { id: TinyPlayId; startedAt: number; endsAt: number; phase: 'starting' | 'playing' | 'ending'; interacted?: boolean };
+export type TinyPlayState = { active: TinyPlaySession | null; lastStartedAt: number; completedToday: TinyPlayId[]; date: string };
+export type TinyPlayDef = { id: TinyPlayId; label: string; durationMs: number; bubble?: string; effect?: 'wiggle' | 'hop' | 'spin' | 'peek' | 'curl' | 'gaze'; episodeId?: EpisodeId };

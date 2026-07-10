@@ -27,6 +27,7 @@ export default function PetMenu() {
     blockReason: getCareActionBlockReason(pet, action, now),
   }));
   const contextAction = getAvailableContextAction(pet, now);
+  const tinyPlayActive = pet.tinyPlay.active !== null;
 
   return (
     <div className="menu-backdrop" onMouseDown={() => setMenuOpen(false)}>
@@ -55,7 +56,14 @@ export default function PetMenu() {
             </button>
           );
         })}
-        {contextAction ? (
+        {tinyPlayActive ? (
+          <>
+            <hr />
+            <button title="小さな遊びをそっと見る" onClick={() => performContextAction('look_together')}>
+              いっしょに見る
+            </button>
+          </>
+        ) : contextAction ? (
           <>
             <hr />
             <button

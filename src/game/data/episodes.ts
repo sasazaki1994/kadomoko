@@ -16,6 +16,11 @@ export const EPISODE_TEXT: Record<EpisodeId, { title: string; text: string }> = 
   watched_tiny_mark: { title: '小さな印', text: '小さな印のそばでしばらく止まっていた。' },
   followed_soft_trace: { title: 'やわらかい跡', text: 'やわらかい跡を見つめていた。' },
   looked_at_lost_dot: { title: '小さな点', text: '迷い込んだ小さな点を見ていた。' },
+  answered_secret_signal: { title: '小さな合図', text: '小さな合図に反応していた。' },
+  played_follow_dot: { title: '小さな点', text: '小さな点を見ていた。' },
+  peeked_from_corner: { title: 'すみっこ', text: '少し隠れて、また出てきた。' },
+  made_a_small_turn: { title: '小さな回転', text: 'ゆっくり回っていた。' },
+  watched_tiny_play: { title: '小さな遊び', text: '小さな遊びをしていた。' },
 };
 
 export const EPISODE_IDS = Object.keys(EPISODE_TEXT) as EpisodeId[];

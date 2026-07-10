@@ -538,3 +538,66 @@ test('quiet ambient frequency lowers discovery roll chance', () => {
   assert.equal(normal.created, true);
   assert.equal(quiet.created, false);
 });
+
+import { applySecretSignalReaction, createEmptySignalState, detectSecretSignals, recordSignalInput, sanitizeSignalState } from '../src/game/signals';
+import { advanceTinyPlay, createEmptyTinyPlayState, maybeStartTinyPlay, sanitizeTinyPlayState } from '../src/game/tinyPlays';
+
+test('secret signals trim recent events, drop old events, and sanitize ids', () => {
+  const raw = { date: '2026-07-09', recentEvents: Array.from({ length: 25 }, (_, i) => ({ input: 'click', at: NOW - i * 100 })), lastTriggeredAt: { tap_tap_pause: NOW, bad: NOW }, triggeredToday: ['tap_tap_pause', 'bad', 'tap_tap_pause'] };
+  const clean = sanitizeSignalState(raw, NOW);
+  assert.equal(clean.recentEvents.length, 20);
+  assert.deepEqual(clean.triggeredToday, ['tap_tap_pause']);
+  assert.deepEqual(Object.keys(clean.lastTriggeredAt), ['tap_tap_pause']);
+  assert.equal(sanitizeSignalState({ recentEvents: [{ input: 'click', at: NOW - 99 * 60_000 }] }, NOW).recentEvents.length, 0);
+});
+
+test('tap tap pause detects once and respects cooldown and date reset', () => {
+  let p = pet({ signals: createEmptySignalState(NOW) });
+  p = recordSignalInput(p, { input: 'click', at: NOW }, NOW).pet;
+  p = recordSignalInput(p, { input: 'click', at: NOW + 200 }, NOW + 200).pet;
+  assert.deepEqual(detectSecretSignals(p, NOW + 1_300), ['tap_tap_pause']);
+  const triggered = recordSignalInput(p, { input: 'click', at: NOW + 1_300 }, NOW + 1_300);
+  assert.equal(triggered.triggered.length, 1);
+  assert.deepEqual(detectSecretSignals(triggered.pet, NOW + 2_600), []);
+  assert.deepEqual(sanitizeSignalState({ ...triggered.pet.signals, date: '2026-07-08' }, NOW + 24 * 60 * 60_000).triggeredToday, []);
+});
+
+test('signal reactions are small, clamped, quiet, and can return episode ids', () => {
+  const base = pet({ vitals: { hunger: 100, mood: 100, sleepiness: 100, affection: 100 }, currentAction: 'sleeping' });
+  const res = applySecretSignalReaction(base, 'sleepy_respect', NOW);
+  assert.deepEqual(res.pet.vitals, { hunger: 100, mood: 100, sleepiness: 100, affection: 100 });
+  assert.equal(res.pet.currentAction, 'sleeping');
+  assert.equal(res.episodeId, 'answered_secret_signal');
+  assert.ok(!/(成功|失敗|スコア|実績|コンボ)/.test(`${res.bubble}`));
+});
+
+test('tiny plays start, avoid duplicates, end naturally, and sanitize ids', () => {
+  const base = pet({ tinyPlay: createEmptyTinyPlayState(NOW) });
+  const started = maybeStartTinyPlay(base, NOW, { force: true, rng: () => 0 });
+  assert.equal(started.started, true);
+  assert.ok(started.pet.tinyPlay.active);
+  assert.equal(maybeStartTinyPlay(started.pet, NOW + 100, { force: true }).started, false);
+  const ended = advanceTinyPlay(started.pet, NOW + 10_000);
+  assert.equal(ended.ended, true);
+  assert.equal(ended.pet.tinyPlay.completedToday.length, 1);
+  assert.equal(advanceTinyPlay(ended.pet, NOW + 11_000).pet.tinyPlay.completedToday.length, 1);
+  assert.deepEqual(sanitizeTinyPlayState({ date: '2026-07-09', completedToday: ['follow_dot', 'bad', 'follow_dot'], active: { id: 'bad' } }, NOW).completedToday, ['follow_dot']);
+});
+
+test('tiny plays avoid sleeping and quiet frequency can suppress starts', () => {
+  const sleeping = pet({ currentAction: 'sleeping', tinyPlay: createEmptyTinyPlayState(NOW) });
+  assert.equal(maybeStartTinyPlay(sleeping, NOW, { force: true }).started, false);
+  const quiet = pet({ tinyPlay: createEmptyTinyPlayState(NOW) });
+  assert.equal(maybeStartTinyPlay(quiet, NOW, { ambientFrequency: 'quiet', rng: () => 0.9 }).started, false);
+  assert.deepEqual(sanitizeTinyPlayState({ date: '2026-07-08', completedToday: ['follow_dot'] }, NOW).completedToday, []);
+});
+
+test('v6 migration adds and sanitizes signal and tiny play state without losing pet data', () => {
+  const save = sanitizeSave({ version: 5, pet: { ...createInitialPetState(NOW), vitals: { hunger: 33, mood: 44, sleepiness: 55, affection: 66 }, signals: { triggeredToday: ['bad'] }, tinyPlay: { completedToday: ['bad'] } }, settings: {}, lastLaunchedAt: NOW }, NOW);
+  assert.equal(save.version, CURRENT_SAVE_VERSION);
+  assert.deepEqual(save.pet.vitals, { hunger: 33, mood: 44, sleepiness: 55, affection: 66 });
+  assert.deepEqual(save.pet.signals.triggeredToday, []);
+  assert.deepEqual(save.pet.tinyPlay.completedToday, []);
+  const backup = { ...save, pet: { ...save.pet, vitals: { hunger: 22, mood: 44, sleepiness: 55, affection: 66 } } };
+  assert.equal(recoverSave({ version: 999 }, backup, NOW).source, 'backup');
+});

@@ -439,3 +439,26 @@
   margin: 3px 0 0;
   line-height: 1.35;
 }
+
+.tiny-play-layer {
+  position: absolute;
+  inset: 16px;
+  pointer-events: none;
+  z-index: 2;
+}
+.tiny-dot, .tiny-line, .tiny-shadow { position: absolute; display: block; opacity: 0.75; }
+.tiny-dot { width: 6px; height: 6px; border-radius: 999px; background: rgba(151, 231, 255, 0.9); box-shadow: 0 0 8px rgba(151,231,255,.5); animation: tiny-float 5s ease-in-out infinite; }
+.tiny-line { width: 18px; height: 1px; background: rgba(255,255,255,.35); left: 62%; top: 32%; animation: tiny-blink 1.4s ease-in-out infinite; }
+.tiny-shadow { width: 22px; height: 8px; border-radius: 50%; background: rgba(42, 31, 64, 0.25); left: 36%; bottom: 18%; animation: tiny-shadow 2s ease-in-out infinite; }
+.tiny-follow_dot .tiny-dot { left: 20%; top: 28%; }
+.tiny-mirror_bounce .tiny-dot { left: 56%; top: 24%; animation-name: tiny-bounce; }
+.tiny-hide_peek .tiny-dot { right: 4%; top: 48%; }
+.tiny-slow_turn .tiny-line { animation: tiny-spin 6s linear infinite; transform-origin: -18px 16px; }
+.tiny-small_parade .tiny-dot { animation-name: tiny-parade; }
+.tiny-counting_blinks .tiny-dot { left: 50%; top: 18%; animation: tiny-blink .7s steps(2, end) infinite; }
+@keyframes tiny-float { 0%,100% { transform: translate(0,0); } 50% { transform: translate(34px, 16px); } }
+@keyframes tiny-bounce { 0%,100% { transform: translateY(0); } 45% { transform: translateY(-14px); } }
+@keyframes tiny-blink { 0%,70%,100% { opacity: .25; } 40% { opacity: .85; } }
+@keyframes tiny-shadow { 0%,100% { transform: scaleX(.8); opacity:.18; } 50% { transform: scaleX(1.15); opacity:.32; } }
+@keyframes tiny-spin { to { transform: rotate(360deg); } }
+@keyframes tiny-parade { 0% { transform: translate(8px, 46px); } 50% { transform: translate(72px, 34px); } 100% { transform: translate(8px, 46px); } }

@@ -198,3 +198,32 @@ Feature: KadoMoco desktop pet
     When discovery rolling is evaluated
     Then discoveries are less likely to appear
     And direct user actions still work
+
+  Scenario: A secret signal can trigger a small reaction
+    Given the user performs a short matching input pattern
+    When the signal is detected
+    Then KadoMoco shows a brief quiet reaction
+    And no success or failure score is shown
+
+  Scenario: Secret signals are rate limited
+    Given a secret signal has just triggered
+    When the same input pattern is repeated immediately
+    Then the same signal does not trigger again during cooldown
+
+  Scenario: A tiny play can start and end quietly
+    Given ambient activity is allowed
+    When a tiny play starts
+    Then a small unobtrusive visual effect is shown
+    And it ends automatically within a short time
+
+  Scenario: Tiny play does not interrupt work
+    Given the menu or status panel is open
+    When tiny play would be visible
+    Then the tiny play is hidden or paused
+    And normal menu interaction remains available
+
+  Scenario: Secret signal and tiny play data migrate safely
+    Given an older save file exists
+    When the app loads the save
+    Then signal and tiny play state are initialized safely
+    And existing pet data is preserved

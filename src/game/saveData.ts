@@ -1,4 +1,6 @@
 import { sanitizeEpisodeEntries } from './episodes';
+import { createEmptySignalState, sanitizeSignalState } from './signals';
+import { createEmptyTinyPlayState, sanitizeTinyPlayState } from './tinyPlays';
 import { createEmptyDiscoveryState, sanitizeDiscoveryState } from './discoveries';
 import { DEFAULT_REACTION_IDS } from './data/reactions';
 import { localDateString, rollDailyTasks } from './dailyTasks';
@@ -23,7 +25,7 @@ import type {
   WeeklyReflection,
 } from './types';
 
-export const CURRENT_SAVE_VERSION = 5;
+export const CURRENT_SAVE_VERSION = 6;
 
 export const DEFAULT_SETTINGS: SaveSettings = {
   alwaysOnTop: false,
@@ -59,6 +61,8 @@ export function createInitialPetState(now: number): PetState {
     episodes: [],
     weeklyReflections: [],
     discovery: createEmptyDiscoveryState(now),
+    signals: createEmptySignalState(now),
+    tinyPlay: createEmptyTinyPlayState(now),
   };
 }
 
@@ -262,7 +266,8 @@ export function migrateSave(raw: unknown): unknown {
   if (raw.version === 1) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, journalEntries: [], lastContextActionAt: {} } : raw.pet };
   if (raw.version === 2) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, lastContextActionAt: {}, episodes: [], weeklyReflections: [] } : raw.pet };
   if (raw.version === 3) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, episodes: [], weeklyReflections: [], discovery: createEmptyDiscoveryState(Date.now()) } : raw.pet };
-  if (raw.version === 4) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, discovery: createEmptyDiscoveryState(Date.now()) } : raw.pet };
+  if (raw.version === 4) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, discovery: createEmptyDiscoveryState(Date.now()), signals: createEmptySignalState(Date.now()), tinyPlay: createEmptyTinyPlayState(Date.now()) } : raw.pet };
+  if (raw.version === 5) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, signals: createEmptySignalState(Date.now()), tinyPlay: createEmptyTinyPlayState(Date.now()) } : raw.pet };
   return null;
 }
 
@@ -304,6 +309,8 @@ function sanitizeCurrentVersionSave(raw: unknown, now: number): SaveData | null 
     episodes: sanitizeEpisodeEntries(rawPet.episodes),
     weeklyReflections: sanitizeWeeklyReflections(rawPet.weeklyReflections),
     discovery: sanitizeDiscoveryState(rawPet.discovery, now),
+    signals: sanitizeSignalState(rawPet.signals, now),
+    tinyPlay: sanitizeTinyPlayState(rawPet.tinyPlay, now),
   };
   return {
     version: CURRENT_SAVE_VERSION,
