@@ -4,7 +4,15 @@ export const MEMORY_FLAG_IDS: readonly MemoryFlagId[] = ['played_yesterday','res
 const VALID = new Set<string>(MEMORY_FLAG_IDS);
 const DAYS: Record<MemoryFlagId, number> = { played_yesterday: 1, rested_often: 3, touched_often: 3, fed_often: 2, calm_day: 2, good_mood_day: 2, low_hunger_recovered: 2, long_time_together: 3, quiet_week: 7 };
 export const clampMemoryStrength = (n: unknown) => Math.min(3, Math.max(1, Math.round(typeof n === 'number' && Number.isFinite(n) ? n : 1)));
-function addDays(date: string, days: number) { const d = new Date(`${date}T00:00:00`); d.setDate(d.getDate() + days); return d.toISOString().slice(0,10); }
+function addDays(date: string, days: number) {
+  const [year = 0, month = 1, day = 1] = date.split('-').map(Number);
+  const d = new Date(year, month - 1, day);
+  d.setDate(d.getDate() + days);
+  const yyyy = String(d.getFullYear()).padStart(4, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
 export function createInitialMemoryState() { return { flags: [] }; }
 export function makeMemoryFlag(id: MemoryFlagId, date: string, strength = 2): MemoryFlag { return { id, createdDate: date, expiresDate: addDays(date, DAYS[id]), strength: clampMemoryStrength(strength) }; }
 export function sanitizeMemoryFlags(raw: unknown, today: string): MemoryFlag[] {

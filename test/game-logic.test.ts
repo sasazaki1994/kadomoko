@@ -336,6 +336,7 @@ test('habitat unlocks, placement limits, and sanitization are stable', () => {
   assert.ok(unlockHabitatItems(pet({ level: 3 })).habitat.unlockedItemIds.includes('small_stone'));
   assert.ok(unlockHabitatItems(pet({ level: 4 })).habitat.unlockedItemIds.includes('old_note'));
   assert.ok(unlockHabitatItems(pet({ vitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 50 } })).habitat.unlockedItemIds.includes('round_trinket'));
+  assert.equal(unlockHabitatItems(pet({ personality: 'normal' })).habitat.unlockedItemIds.includes('quiet_box'), false);
   assert.ok(unlockHabitatItems(pet({ personality: 'moody' })).habitat.unlockedItemIds.includes('quiet_box'));
   const clean = sanitizeHabitatState({ unlockedItemIds: ['soft_cloth', 'soft_cloth', 'bad', 'small_stone', 'old_note'], placedItemIds: ['bad', 'small_stone', 'small_stone', 'old_note'] });
   assert.deepEqual(clean.unlockedItemIds, ['soft_cloth', 'small_stone', 'old_note']);

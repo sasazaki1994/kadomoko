@@ -49,6 +49,7 @@ export function chooseDefaultPlacedItems(pet: PetState): HabitatItemId[] {
 export function unlockHabitatItems(pet: PetState): PetState {
   const unlocked = new Set(pet.habitat.unlockedItemIds);
   for (const item of HABITAT_ITEMS) {
+    if (item.unlockLevel === undefined && item.unlockAffection === undefined) continue;
     if ((item.unlockLevel ?? 1) <= pet.level && (item.unlockAffection ?? 0) <= pet.vitals.affection) unlocked.add(item.id);
   }
   if (pet.personality === 'moody' || pet.personality === 'sulky' || pet.personalityHistory.some((h) => h.tendency === 'moody' || h.tendency === 'sulky')) unlocked.add('quiet_box');
