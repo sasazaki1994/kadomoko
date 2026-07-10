@@ -1,24 +1,16 @@
 import { getDayPeriod } from './lifeRhythm';
 import { EPISODE_IDS, EPISODE_TEXT } from './data/episodes';
+import { isIsoLocalDate, localDateString } from './dailyTasks';
 import type { EpisodeEntry, EpisodeId, EpisodeTrigger, PetState } from './types';
 
 const MAX_PER_DAY = 2;
 export const MAX_EPISODE_ENTRIES = 60;
 const MAX_TITLE = 24;
 const MAX_TEXT = 80;
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const SAFE_ID = /^[a-z0-9_-]{1,48}$/i;
 
-function localDate(now: number): string {
-  const d = new Date(now);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
 function entry(id: EpisodeId, trigger: EpisodeTrigger, now: number, relatedMemoryFlagIds: string[] = [], relatedHabitatItemIds: string[] = []): EpisodeEntry {
-  return { id, date: localDate(now), ...EPISODE_TEXT[id], trigger, relatedMemoryFlagIds, relatedHabitatItemIds };
+  return { id, date: localDateString(now), ...EPISODE_TEXT[id], trigger, relatedMemoryFlagIds, relatedHabitatItemIds };
 }
 
 function hasProp(pet: PetState, id: string): boolean {
@@ -48,15 +40,16 @@ export function createEpisodeCandidates(pet: PetState, trigger: EpisodeTrigger, 
 export function sanitizeEpisodeEntries(raw: unknown, maxEntries = MAX_EPISODE_ENTRIES): EpisodeEntry[] {
   if (!Array.isArray(raw)) return [];
   const allowed = new Set<string>(EPISODE_IDS);
+  const triggers = new Set<EpisodeTrigger>(['day_rollover', 'random_event', 'context_action', 'habitat_event', 'level_up', 'resume']);
   return raw.filter((x): x is Record<string, unknown> => x !== null && typeof x === 'object' && !Array.isArray(x)).flatMap((x) => {
-    if (typeof x.id !== 'string' || !allowed.has(x.id) || typeof x.date !== 'string' || !ISO_DATE.test(x.date)) return [];
+    if (typeof x.id !== 'string' || !allowed.has(x.id) || !isIsoLocalDate(x.date)) return [];
     const cleanIds = (v: unknown) => Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string' && SAFE_ID.test(s)).slice(0, 8) : [];
     return [{
       id: x.id as EpisodeId,
       date: x.date,
       title: (typeof x.title === 'string' ? x.title : EPISODE_TEXT[x.id as EpisodeId].title).slice(0, MAX_TITLE),
       text: (typeof x.text === 'string' ? x.text : EPISODE_TEXT[x.id as EpisodeId].text).slice(0, MAX_TEXT),
-      trigger: typeof x.trigger === 'string' ? x.trigger as EpisodeEntry['trigger'] : 'day_rollover',
+      trigger: typeof x.trigger === 'string' && triggers.has(x.trigger as EpisodeTrigger) ? x.trigger as EpisodeTrigger : 'day_rollover',
       relatedMemoryFlagIds: cleanIds(x.relatedMemoryFlagIds),
       relatedHabitatItemIds: cleanIds(x.relatedHabitatItemIds),
     }];
@@ -68,7 +61,7 @@ export function appendEpisodeEntries(existing: EpisodeEntry[], candidates: Episo
   const next = sanitizeEpisodeEntries(existing, maxEntries);
   const perDate = new Map<string, number>();
   for (const item of next) perDate.set(item.date, (perDate.get(item.date) ?? 0) + 1);
-  for (const candidate of sanitizeEpisodeEntries(candidates, MAX_PER_DAY)) {
+  for (const candidate of sanitizeEpisodeEntries(candidates, maxEntries)) {
     if ((perDate.get(candidate.date) ?? 0) >= MAX_PER_DAY) continue;
     if (next.some((item) => item.date === candidate.date && item.id === candidate.id)) continue;
     next.push(candidate);

@@ -14,6 +14,24 @@ export function localDateString(epochMs: number): string {
   return `${y}-${m}-${day}`;
 }
 
+export const ISO_LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export function isIsoLocalDate(value: unknown): value is string {
+  return typeof value === 'string' && ISO_LOCAL_DATE_PATTERN.test(value);
+}
+
+export function addLocalDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function startOfCalendarWeek(date: string): string {
+  const d = new Date(`${date}T00:00:00`);
+  const mondayOffset = (d.getDay() + 6) % 7;
+  return addLocalDays(date, -mondayOffset);
+}
+
 export function rollDailyTasks(date: string, rng: () => number = Math.random): DailyTasksState {
   const shuffled = [...DAILY_TASK_POOL];
   for (let i = shuffled.length - 1; i > 0; i--) {

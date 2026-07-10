@@ -16,7 +16,7 @@ import { computeTendency, EMPTY_CARE_STATS, resolvePersonality } from '../src/ga
 import { CURRENT_SAVE_VERSION, createInitialPetState, recoverSave, sanitizeSave } from '../src/game/saveData';
 import { deriveBaseState } from '../src/game/stateMachine';
 import { progressTime } from '../src/game/timeProgress';
-import type { CareStats, PetState } from '../src/game/types';
+import type { CareStats, EpisodeEntry, PetState } from '../src/game/types';
 import { applyVitalDelta, clampVital } from '../src/game/vitals';
 
 const NOW = new Date('2026-07-09T09:00:00Z').getTime();
@@ -166,7 +166,6 @@ test('personality tendency and repeated tendency resolution are stable', () => {
     'sweet',
   );
 });
-
 
 test('corrupted save payloads are sanitized without throwing', () => {
   const save = sanitizeSave(
@@ -331,7 +330,6 @@ test('v1 saves migrate to v2 and invalid journal entries are dropped', () => {
   assert.equal(current.pet.journalEntries[0].personality, 'calm');
 });
 
-
 test('context actions select sleepy, sulking, hungry, priority and cooldown cases', () => {
   assert.equal(getAvailableContextAction(pet({ vitals: { hunger: 70, mood: 70, sleepiness: 80, affection: 10 } }), NOW)?.id, 'give_space');
   assert.equal(getAvailableContextAction(pet({ vitals: { hunger: 70, mood: 10, sleepiness: 20, affection: 10 } }), NOW)?.id, 'wait_gently');
@@ -390,7 +388,6 @@ test('v3 save migration fills settings and strips invalid context action keys', 
   assert.deepEqual(save.pet.lastContextActionAt, { give_space: NOW });
 });
 
-
 test('episode candidates follow care and quiet conditions', () => {
   const p = pet({
     vitals: { hunger: 70, mood: 75, sleepiness: 20, affection: 30 },
@@ -406,7 +403,7 @@ test('episode append avoids duplicates and caps per day and total', () => {
   const first = createEpisodeCandidates(pet({ vitals: { hunger: 70, mood: 75, sleepiness: 20, affection: 10 } }), 'day_rollover', NOW);
   const duplicated = appendEpisodeEntries(first, first);
   assert.equal(duplicated.length, first.length);
-  const many = Array.from({ length: 70 }, (_, i) => ({ ...first[0], date: `2026-05-${String((i % 28) + 1).padStart(2, '0')}`, id: (i % 2 ? 'played_again' : 'first_quiet_day') as const }));
+  const many = Array.from({ length: 70 }, (_, i) => ({ ...first[0], date: `2026-${String(Math.floor(i / 28) + 1).padStart(2, '0')}-${String((i % 28) + 1).padStart(2, '0')}`, id: (i % 3 === 0 ? 'first_quiet_day' : i % 3 === 1 ? 'played_again' : 'rested_well') as const }));
   const capped = appendEpisodeEntries([], many, { maxEntries: 60 });
   assert.equal(capped.length, 60);
 });
@@ -421,6 +418,17 @@ test('episode sanitize trims long text and drops invalid entries', () => {
   assert.ok(clean[0].title.length <= 24);
   assert.ok(clean[0].text.length <= 80);
   assert.deepEqual(clean[0].relatedMemoryFlagIds, ['ok']);
+});
+
+test('episode sanitization falls back invalid triggers and keeps all candidates before per-day cap', () => {
+  const cleaned = sanitizeEpisodeEntries([
+    { id: 'first_quiet_day', date: '2026-07-09', title: '静かな日', text: '静かに過ごした日。', trigger: 'unexpected' },
+  ]);
+  assert.equal(cleaned[0].trigger, 'day_rollover');
+
+  const base: EpisodeEntry = { id: 'first_quiet_day', date: '2026-07-09', title: '静かな日', text: '静かに過ごした日。', trigger: 'day_rollover', relatedMemoryFlagIds: [], relatedHabitatItemIds: [] };
+  const appended = appendEpisodeEntries([base, { ...base, id: 'played_again' }], [base, { ...base, id: 'played_again' }, { ...base, date: '2026-07-10', id: 'rested_well' }]);
+  assert.equal(appended.some((episode) => episode.date === '2026-07-10' && episode.id === 'rested_well'), true);
 });
 
 test('weekly reflection summarizes task totals, care action, tone and caps history', () => {
@@ -447,7 +455,26 @@ test('relationship note changes without rank or score language', () => {
   assert.equal(buildRelationshipNote(pet({ vitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 30 }, personality: 'energetic' })).label, 'よく遊ぶ小さな相棒');
   assert.equal(buildRelationshipNote(pet({ vitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 30 }, personality: 'relaxed' })).label, '休むのが上手な相棒');
   assert.equal(buildRelationshipNote(pet({ vitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 30 }, personality: 'sulky' })).label, '気まぐれな小さな相棒');
-  assert.equal(/ランク|スコア|S|A|B/.test(buildRelationshipNote(pet()).label), false);
+  assert.equal(/ランク|スコア|評価/.test(buildRelationshipNote(pet()).label), false);
+});
+
+test('day rollover records episodes from pre-reset care stats and calendar-week reflection key', () => {
+  const start = pet({
+    dailyTasks: { date: '2026-07-08', tasks: [{ id: 'together_30min', completed: true }], togetherMsToday: 31 * 60_000, goodMoodStreakMs: 0 },
+    careStats: { ...EMPTY_CARE_STATS, playCount: 2, activeTogetherTimeMs: 31 * 60_000 },
+    journalEntries: Array.from({ length: 6 }, (_, i) => ({
+      date: `2026-07-${String(i + 2).padStart(2, '0')}`,
+      careCounts: { feed: 0, touch: 0, play: 1, rest: 0 },
+      finalVitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 10 },
+      personality: 'energetic' as const,
+      completedTaskCount: 1,
+      note: 'ゆっくり過ごした',
+    })),
+    lastUpdatedAt: new Date('2026-07-08T23:50:00').getTime(),
+  });
+  const progressed = progressTime(start, new Date('2026-07-09T00:10:00').getTime(), { online: true }).pet;
+  assert.ok(progressed.episodes.some((episode) => episode.id === 'played_again' || episode.id === 'stayed_together'));
+  assert.equal(progressed.weeklyReflections.at(-1)?.weekStartDate, '2026-07-06');
 });
 
 test('v4 migration fills and sanitizes episode and weekly reflection fields', () => {
@@ -456,7 +483,7 @@ test('v4 migration fills and sanitizes episode and weekly reflection fields', ()
   assert.deepEqual(old.pet.weeklyReflections, []);
   const current = sanitizeSave({
     version: CURRENT_SAVE_VERSION,
-    pet: { ...createInitialPetState(NOW), vitals: { hunger: 22, mood: 33, sleepiness: 44, affection: 55 }, episodes: [{ id: 'bad' }, { id: 'first_quiet_day', date: '2026-07-09', title: '静かな日', text: '静かに過ごした日。', trigger: 'day_rollover' }], weeklyReflections: [{ bad: true }] },
+    pet: { ...createInitialPetState(NOW), vitals: { hunger: 22, mood: 33, sleepiness: 44, affection: 55 }, episodes: [{ id: 'bad' }, { id: 'first_quiet_day', date: '2026-07-09', title: '静かな日', text: '静かに過ごした日。', trigger: 'day_rollover' }], weeklyReflections: [{ bad: true }, { weekStartDate: 'bad', weekEndDate: '2026-07-12', summary: '静かに過ごした週だった。' }] },
     settings: { alwaysOnTop: false, volume: 50 },
     lastLaunchedAt: NOW,
   }, NOW);

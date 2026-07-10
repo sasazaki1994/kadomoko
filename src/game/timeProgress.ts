@@ -4,18 +4,12 @@ import { applyCompletedTasks } from './actions';
 import { createDailyJournalEntry } from './dailySummary';
 import { BALANCE, THRESHOLDS } from './data/balance';
 import { PERSONALITY_RULES } from './data/personalityRules';
-import { completeTimeTasks, localDateString, rollDailyTasks } from './dailyTasks';
+import { completeTimeTasks, localDateString, rollDailyTasks, startOfCalendarWeek } from './dailyTasks';
 import { computeTendency, EMPTY_CARE_STATS, resolvePersonality } from './personality';
 import { applyVitalDelta, clampVital } from './vitals';
 import type { PetState, TimeProgressResult } from './types';
 
 const PERSONALITY_HISTORY_LIMIT = 14;
-
-function addLocalDays(date: string, days: number): string {
-  const d = new Date(`${date}T00:00:00`);
-  d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 export type TimeProgressOptions = {
   /** True for live ticks; false when catching up time the app was closed. */
@@ -137,6 +131,7 @@ export function progressTime(
       ...next.personalityHistory,
       { date: previousDate, tendency },
     ].slice(-PERSONALITY_HISTORY_LIMIT);
+    const episodeCandidates = createEpisodeCandidates(next, 'day_rollover', pet.lastUpdatedAt);
     next = {
       ...next,
       personality: resolvePersonality(next.personality, history),
@@ -145,8 +140,8 @@ export function progressTime(
       dailyTasks: rollDailyTasks(today, rng),
       journalEntries: [...next.journalEntries, createDailyJournalEntry(next)].slice(-30),
     };
-    const episodes = appendEpisodeEntries(next.episodes, createEpisodeCandidates(next, 'day_rollover', pet.lastUpdatedAt));
-    const weekReflection = createWeeklyReflection(next.journalEntries, episodes, addLocalDays(previousDate, -6));
+    const episodes = appendEpisodeEntries(next.episodes, episodeCandidates);
+    const weekReflection = createWeeklyReflection(next.journalEntries, episodes, startOfCalendarWeek(previousDate));
     next = {
       ...next,
       episodes,

@@ -1,6 +1,6 @@
 import { sanitizeEpisodeEntries } from './episodes';
 import { DEFAULT_REACTION_IDS } from './data/reactions';
-import { localDateString, rollDailyTasks } from './dailyTasks';
+import { isIsoLocalDate, localDateString, rollDailyTasks } from './dailyTasks';
 import { EMPTY_CARE_STATS } from './personality';
 import { INITIAL_VITALS } from './vitals';
 import type {
@@ -218,7 +218,7 @@ function sanitizePersonalityHistory(raw: unknown): PersonalityHistoryEntry[] {
 function sanitizeWeeklyReflections(raw: unknown): WeeklyReflection[] {
   if (!Array.isArray(raw)) return [];
   return raw.filter(isRecord).flatMap((entry) => {
-    if (typeof entry.weekStartDate !== 'string' || typeof entry.weekEndDate !== 'string' || typeof entry.summary !== 'string') return [];
+    if (!isIsoLocalDate(entry.weekStartDate) || !isIsoLocalDate(entry.weekEndDate) || typeof entry.summary !== 'string') return [];
     const tone = enumValue(entry.tone, ['calm', 'active', 'restful', 'mixed'] as const, 'mixed');
     const action = enumValue(entry.mostFrequentCareAction, ['feed', 'touch', 'play', 'rest'] as const, 'feed');
     return [{
