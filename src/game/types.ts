@@ -29,6 +29,26 @@ export type Personality =
 
 export type CareActionId = 'feed' | 'touch' | 'play' | 'rest';
 
+export type ContextActionId =
+  | 'give_space'
+  | 'wait_gently'
+  | 'look_together'
+  | 'stay_together'
+  | 'small_bite'
+  | 'tidy_habitat';
+
+export type ContextActionDef = {
+  id: ContextActionId;
+  label: string;
+  description: string;
+  priority: number;
+  cooldownMs: number;
+};
+
+export type StatusDisplayMode = 'numbers' | 'observation' | 'both';
+export type AmbientFrequency = 'quiet' | 'normal' | 'lively';
+export type BubbleFrequency = 'off' | 'quiet' | 'normal';
+
 export type DayPeriod =
   | 'morning'
   | 'daytime'
@@ -120,6 +140,8 @@ export type PetState = {
   lastCareAt: number;
   /** epoch ms per action, for cooldown checks. */
   lastActionAt: Partial<Record<CareActionId, number>>;
+  /** epoch ms per contextual action, for cooldown checks. */
+  lastContextActionAt: Partial<Record<ContextActionId, number>>;
   /** Carry-over ms toward the next 10-minute decay chunk. */
   pendingDecayMs: number;
   /** Accumulated ms with mood >= 80, toward the 30-minute affection bonus. */
@@ -132,6 +154,10 @@ export type PetState = {
 export type SaveSettings = {
   alwaysOnTop: boolean;
   volume: number;
+  statusDisplayMode: StatusDisplayMode;
+  ambientFrequency: AmbientFrequency;
+  bubbleFrequency: BubbleFrequency;
+  reduceActivityWhenFullscreen: boolean;
 };
 
 export type SaveData = {
@@ -142,6 +168,16 @@ export type SaveData = {
 };
 
 export type ActionBlockReason = 'cooldown' | 'tooSleepy' | 'tooHungry';
+
+export type ContextActionResult = {
+  pet: PetState;
+  ok: boolean;
+  actionId: ContextActionId;
+  bubble?: string;
+  tempState?: PetMachineState;
+  leveledUp: boolean;
+  newLevel?: number;
+};
 
 export type CareActionResult = {
   pet: PetState;

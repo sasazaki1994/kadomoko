@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { performCareAction } from '../game/actions';
+import { performContextAction as performContextCareAction } from '../game/contextActions';
 import { BALANCE } from '../game/data/balance';
 import { CLICK_REACTIONS, REACTION_DURATION_MS } from '../game/data/reactions';
 import {
@@ -25,14 +26,18 @@ import { dailyTaskCompletionBubble } from '../game/dailyTasks';
 import { progressTime } from '../game/timeProgress';
 import type {
   CareActionId,
+  ContextActionId,
   DailyTaskId,
   PetMachineState,
   PetState,
   Personality,
   RandomEventDef,
+  SaveSettings,
 } from '../game/types';
 
 const AMBIENT_SPEECH_CHANCE_PER_MINUTE = 0.08;
+const AMBIENT_MULTIPLIER = { quiet: 0.45, normal: 1, lively: 1.25 } as const;
+const BUBBLE_MULTIPLIER = { off: 0, quiet: 0.45, normal: 1 } as const;
 const RESUME_REACTION_MIN_GAP_MS = 60_000;
 const RESUME_BUBBLES = ['おかえり', '……', 'ここにいる', 'ひとやすみしてた'] as const;
 
@@ -62,11 +67,14 @@ export type PetStore = {
   menuOpen: boolean;
   devPanelOpen: boolean;
   alwaysOnTop: boolean;
+  settings: SaveSettings;
 
   init: () => Promise<void>;
   tick: () => void;
   catchUpOffline: (fromResume?: boolean) => void;
   performAction: (action: CareActionId) => void;
+  performContextAction: (action: ContextActionId) => void;
+  updateSettings: (partial: Partial<SaveSettings>) => Promise<void>;
   clickReaction: () => void;
   togglePanel: () => void;
   setMenuOpen: (open: boolean) => void;
@@ -148,6 +156,7 @@ export const usePetStore = create<PetStore>((set, get) => {
     menuOpen: false,
     devPanelOpen: false,
     alwaysOnTop: false,
+    settings: { alwaysOnTop: false, volume: 50, statusDisplayMode: 'both', ambientFrequency: 'normal', bubbleFrequency: 'normal', reduceActivityWhenFullscreen: true },
 
     init: async () => {
       const now = Date.now();
@@ -162,13 +171,14 @@ export const usePetStore = create<PetStore>((set, get) => {
         loaded: true,
         pet: progressed.pet,
         alwaysOnTop: save.settings.alwaysOnTop,
+        settings: save.settings,
       });
       scheduleSave(progressed.pet);
     },
 
     tick: () => {
       const now = Date.now();
-      const { pet, showBubble } = get();
+      const { pet, showBubble, settings } = get();
       const result = progressTime(pet, now, { online: true });
       let next = result.pet;
 
@@ -189,16 +199,16 @@ export const usePetStore = create<PetStore>((set, get) => {
         dayPeriod: hints.dayPeriod,
         activeTogetherTimeMs: next.careStats.activeTogetherTimeMs,
         lastCareAt: next.lastCareAt,
-      });
+      }, Math.random, AMBIENT_MULTIPLIER[settings.ambientFrequency]);
       if (event) {
         next = { ...next, lastRandomEventAt: now };
         playRandomEvent(event);
       }
 
       applyPetUpdate(next, { leveledUp: result.leveledUp, newLevel: result.newLevel });
-      if (!result.leveledUp) showDailyTaskBubble(result.completedTaskIds);
+      if (!result.leveledUp && settings.bubbleFrequency === 'normal') showDailyTaskBubble(result.completedTaskIds);
 
-      if (!event && Math.random() < AMBIENT_SPEECH_CHANCE_PER_MINUTE) {
+      if (!event && Math.random() < AMBIENT_SPEECH_CHANCE_PER_MINUTE * BUBBLE_MULTIPLIER[settings.bubbleFrequency]) {
         const state = deriveBaseState(next.vitals, next.currentAction);
         const base = SPEECH_BY_STATE[state] ?? [];
         const extra = next.unlockedSpeechPackIds.includes('extra') ? SPEECH_PACK_EXTRA : [];
@@ -246,6 +256,28 @@ export const usePetStore = create<PetStore>((set, get) => {
       set({ menuOpen: false });
     },
 
+
+    performContextAction: (action) => {
+      const now = Date.now();
+      const result = performContextCareAction(get().pet, action, now);
+      if (!result.ok) {
+        if (result.tempState && isTempState(result.tempState)) showTempState(result.tempState, 'wiggle');
+        if (result.bubble) get().showBubble(result.bubble, true);
+        return;
+      }
+      applyPetUpdate(result.pet, { leveledUp: result.leveledUp, newLevel: result.newLevel });
+      if (!result.leveledUp && result.tempState && isTempState(result.tempState)) showTempState(result.tempState, 'gaze');
+      if (result.bubble) get().showBubble(result.bubble, true);
+      set({ menuOpen: false });
+    },
+
+    updateSettings: async (partial) => {
+      const next = { ...get().settings, ...partial };
+      const saved = (await window.kadomoco?.setSettings?.(partial)) ?? next;
+      const merged = { ...next, ...saved } as SaveSettings;
+      set({ settings: merged, alwaysOnTop: merged.alwaysOnTop });
+    },
+
     clickReaction: () => {
       const { pet, showBubble } = get();
       const unlocked = CLICK_REACTIONS.filter((r) => pet.unlockedReactionIds.includes(r.id));
@@ -262,7 +294,8 @@ export const usePetStore = create<PetStore>((set, get) => {
     toggleAlwaysOnTop: async () => {
       const target = !get().alwaysOnTop;
       const applied = (await window.kadomoco?.setAlwaysOnTop(target)) ?? target;
-      set({ alwaysOnTop: applied });
+      const settings = { ...get().settings, alwaysOnTop: applied };
+      set({ alwaysOnTop: applied, settings });
     },
 
     quitApp: () => {
@@ -273,7 +306,8 @@ export const usePetStore = create<PetStore>((set, get) => {
 
     showBubble: (text, force = false) => {
       const now = Date.now();
-      const { lastBubbleAt, bubble } = get();
+      const { lastBubbleAt, bubble, settings } = get();
+      if (!force && settings.bubbleFrequency === 'off') return;
       if (!force && (bubble !== null || now - lastBubbleAt < SPEECH_MIN_INTERVAL_MS)) return;
       if (bubbleTimer) clearTimeout(bubbleTimer);
       bubbleSeq += 1;

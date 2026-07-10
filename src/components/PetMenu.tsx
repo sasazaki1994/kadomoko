@@ -1,4 +1,5 @@
 import { bubbleForBlockReason, getCareActionBlockReason } from '../game/actions';
+import { getAvailableContextAction } from '../game/contextActions';
 import { usePetStore } from '../store/usePetStore';
 import type { CareActionId } from '../game/types';
 
@@ -13,6 +14,7 @@ export default function PetMenu() {
   const pet = usePetStore((s) => s.pet);
   const alwaysOnTop = usePetStore((s) => s.alwaysOnTop);
   const performAction = usePetStore((s) => s.performAction);
+  const performContextAction = usePetStore((s) => s.performContextAction);
   const showBubble = usePetStore((s) => s.showBubble);
   const togglePanel = usePetStore((s) => s.togglePanel);
   const toggleAlwaysOnTop = usePetStore((s) => s.toggleAlwaysOnTop);
@@ -23,6 +25,7 @@ export default function PetMenu() {
     action,
     blockReason: getCareActionBlockReason(pet, action, now),
   }));
+  const contextAction = getAvailableContextAction(pet, now);
 
   return (
     <div className="menu-backdrop" onMouseDown={() => setMenuOpen(false)}>
@@ -51,6 +54,17 @@ export default function PetMenu() {
             </button>
           );
         })}
+        {contextAction ? (
+          <>
+            <hr />
+            <button
+              title={contextAction.description}
+              onClick={() => performContextAction(contextAction.id)}
+            >
+              {contextAction.label}
+            </button>
+          </>
+        ) : null}
         <hr />
         <button
           onClick={() => {
@@ -58,6 +72,13 @@ export default function PetMenu() {
           }}
         >
           ステータスを見る
+        </button>
+        <button
+          onClick={() => {
+            togglePanel();
+          }}
+        >
+          設定を見る
         </button>
         <button
           onClick={() => {

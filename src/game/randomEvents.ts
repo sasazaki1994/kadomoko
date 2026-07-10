@@ -70,9 +70,10 @@ export function maybeRollRandomEvent(
   lastEventAt: number,
   context?: Omit<RandomEventContext, 'dayPeriod'> & { dayPeriod?: DayPeriod },
   rng: () => number = Math.random,
+  frequencyMultiplier = 1,
 ): RandomEventDef | null {
   if (now - lastEventAt < RANDOM_EVENT_MIN_GAP_MS) return null;
-  if (rng() >= RANDOM_EVENT_CHANCE_PER_MINUTE) return null;
+  if (rng() >= RANDOM_EVENT_CHANCE_PER_MINUTE * frequencyMultiplier) return null;
   if (!context) return pickRandomEvent(rng);
   const hints = getLifeRhythmHints({
     now,

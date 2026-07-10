@@ -108,3 +108,32 @@ Feature: KadoMoco desktop pet
     When daily tasks are rerolled
     Then a compact journal entry for the previous day is stored
     And at most 30 journal entries are retained
+
+  Scenario: A contextual care action appears when the pet needs it
+    Given the pet is very sleepy
+    When the user opens the right-click menu
+    Then one contextual action "そっとする" is shown
+    And the default four care actions are still available
+
+  Scenario: Contextual care respects the current state
+    Given the pet is sleeping
+    When the user selects "そっとする"
+    Then the pet is not woken up
+    And a quiet reaction may be shown
+
+  Scenario: Observation mode hides raw numbers
+    Given the status panel is open
+    When the display mode is set to observation
+    Then vitals are described with short text
+    And raw numeric vital values are not shown
+
+  Scenario: Quiet settings reduce ambient interruptions
+    Given bubble frequency is set to quiet
+    When ambient events are processed
+    Then spontaneous bubbles are less frequent
+    And direct user action feedback is still available
+
+  Scenario: Settings persist after restart
+    Given display and frequency settings are changed
+    When the app is restarted
+    Then the settings are restored
