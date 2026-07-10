@@ -20,9 +20,11 @@ import {
   TEMP_STATE_DURATION_MS,
   type TempMachineState,
 } from '../game/stateMachine';
+import { dailyTaskCompletionBubble } from '../game/dailyTasks';
 import { progressTime } from '../game/timeProgress';
 import type {
   CareActionId,
+  DailyTaskId,
   PetMachineState,
   PetState,
   Personality,
@@ -125,6 +127,13 @@ export const usePetStore = create<PetStore>((set, get) => {
     scheduleSave(pet);
   };
 
+  const showDailyTaskBubble = (completedTaskIds: readonly DailyTaskId[]) => {
+    const bubble = dailyTaskCompletionBubble(completedTaskIds);
+    if (!bubble) return false;
+    get().showBubble(bubble, true);
+    return true;
+  };
+
   return {
     loaded: false,
     pet: createInitialPetState(Date.now()),
@@ -166,6 +175,7 @@ export const usePetStore = create<PetStore>((set, get) => {
       }
 
       applyPetUpdate(next, { leveledUp: result.leveledUp, newLevel: result.newLevel });
+      if (!result.leveledUp) showDailyTaskBubble(result.completedTaskIds);
 
       if (!event && Math.random() < AMBIENT_SPEECH_CHANCE_PER_MINUTE) {
         const state = deriveBaseState(next.vitals, next.currentAction);
@@ -182,6 +192,7 @@ export const usePetStore = create<PetStore>((set, get) => {
       const now = Date.now();
       const result = progressTime(get().pet, now, { online: false });
       applyPetUpdate(result.pet, { leveledUp: result.leveledUp, newLevel: result.newLevel });
+      if (!result.leveledUp) showDailyTaskBubble(result.completedTaskIds);
     },
 
     performAction: (action) => {
@@ -202,7 +213,10 @@ export const usePetStore = create<PetStore>((set, get) => {
         const effect: CharacterEffect = result.tempState === 'playing' ? 'hop' : 'wiggle';
         showTempState(result.tempState, effect);
       }
-      if (result.bubble) get().showBubble(result.bubble);
+      const showedDailyTaskBubble = !result.leveledUp && showDailyTaskBubble(result.completedTaskIds);
+      if (!showedDailyTaskBubble && result.bubble) {
+        get().showBubble(result.bubble);
+      }
       set({ menuOpen: false });
     },
 
@@ -271,6 +285,7 @@ export const usePetStore = create<PetStore>((set, get) => {
       const shifted = { ...pet, lastUpdatedAt: pet.lastUpdatedAt - minutes * 60_000 };
       const result = progressTime(shifted, now, { online: false });
       applyPetUpdate(result.pet, { leveledUp: result.leveledUp, newLevel: result.newLevel });
+      if (!result.leveledUp) showDailyTaskBubble(result.completedTaskIds);
     },
 
     devRerollTasks: () => {

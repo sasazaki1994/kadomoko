@@ -75,3 +75,51 @@ function completeTasks(
   if (completed.length === 0) return { state, completed };
   return { state: { ...state, tasks }, completed };
 }
+
+export type DailyTaskProgress = { current: number; target: number; unit: 'min' };
+
+function msToWholeMinutes(ms: number): number {
+  return Math.floor(Math.max(0, ms) / 60_000);
+}
+
+export function getDailyTaskProgress(
+  state: DailyTasksState,
+  id: DailyTaskId,
+): DailyTaskProgress | null {
+  switch (id) {
+    case 'together_30min': {
+      const target = msToWholeMinutes(TOGETHER_TASK_TARGET_MS);
+      return {
+        current: Math.min(msToWholeMinutes(state.togetherMsToday), target),
+        target,
+        unit: 'min',
+      };
+    }
+    case 'good_mood_15min': {
+      const target = msToWholeMinutes(GOOD_MOOD_TASK_TARGET_MS);
+      return {
+        current: Math.min(msToWholeMinutes(state.goodMoodStreakMs), target),
+        target,
+        unit: 'min',
+      };
+    }
+    case 'feed_once':
+    case 'touch_once':
+    case 'play_once':
+    case 'rest_once':
+      return null;
+    default: {
+      const exhaustive: never = id;
+      return exhaustive;
+    }
+  }
+}
+
+const DAILY_TASK_COMPLETION_BUBBLES = ['できた', 'いい感じ', '今日のひとつ'] as const;
+
+export function dailyTaskCompletionBubble(
+  completedIds: readonly DailyTaskId[],
+): string | undefined {
+  if (completedIds.length === 0) return undefined;
+  return DAILY_TASK_COMPLETION_BUBBLES[(completedIds.length - 1) % DAILY_TASK_COMPLETION_BUBBLES.length];
+}

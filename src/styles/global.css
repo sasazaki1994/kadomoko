@@ -233,6 +233,9 @@ body {
 }
 
 .daily-tasks li {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
   font-size: 10px;
   line-height: 1.5;
 }
@@ -245,6 +248,19 @@ body {
 .task-check {
   display: inline-block;
   width: 12px;
+  flex: 0 0 auto;
+}
+
+.task-label {
+  min-width: 0;
+  flex: 1;
+}
+
+.task-progress {
+  flex: 0 0 auto;
+  color: #9a8c80;
+  font-size: 9px;
+  opacity: 0.8;
 }
 
 /* --- dev tools --- */
