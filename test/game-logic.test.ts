@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { performCareAction } from '../src/game/actions';
+import { getAvailableContextAction, performContextAction } from '../src/game/contextActions';
 import { buildDailySummary } from '../src/game/dailySummary';
 import { BALANCE } from '../src/game/data/balance';
 import { getDayPeriod, getLifeRhythmHints } from '../src/game/lifeRhythm';
+import { describeVitals } from '../src/game/observation';
 import { getRandomEventWeight, pickWeightedRandomEvent, type RandomEventContext } from '../src/game/randomEvents';
 import { dailyTaskCompletionBubble, getDailyTaskProgress, rollDailyTasks } from '../src/game/dailyTasks';
 import { gainExp, LEVEL_REQUIREMENTS } from '../src/game/level';
@@ -324,4 +326,63 @@ test('v1 saves migrate to v2 and invalid journal entries are dropped', () => {
   }, NOW);
   assert.equal(current.pet.journalEntries.length, 1);
   assert.equal(current.pet.journalEntries[0].personality, 'calm');
+});
+
+
+test('context actions select sleepy, sulking, hungry, priority and cooldown cases', () => {
+  assert.equal(getAvailableContextAction(pet({ vitals: { hunger: 70, mood: 70, sleepiness: 80, affection: 10 } }), NOW)?.id, 'give_space');
+  assert.equal(getAvailableContextAction(pet({ vitals: { hunger: 70, mood: 10, sleepiness: 20, affection: 10 } }), NOW)?.id, 'wait_gently');
+  assert.equal(getAvailableContextAction(pet({ vitals: { hunger: 20, mood: 70, sleepiness: 20, affection: 10 } }), NOW)?.id, 'small_bite');
+  assert.equal(getAvailableContextAction(pet({ vitals: { hunger: 20, mood: 10, sleepiness: 85, affection: 10 } }), NOW)?.id, 'give_space');
+  assert.equal(getAvailableContextAction(pet({ vitals: { hunger: 70, mood: 70, sleepiness: 80, affection: 10 }, lastContextActionAt: { give_space: NOW - 1_000 } }), NOW), null);
+});
+
+test('context actions apply effects safely and preserve sleeping give_space', () => {
+  const sleeping = petWithoutDailyTasks({ currentAction: 'sleeping', vitals: { hunger: 70, mood: 99, sleepiness: 100, affection: 99 } });
+  const spaced = performContextAction(sleeping, 'give_space', NOW + 10_000);
+  assert.equal(spaced.ok, true);
+  assert.equal(spaced.pet.currentAction, 'sleeping');
+  assert.deepEqual(spaced.pet.vitals, { hunger: 70, mood: 100, sleepiness: 97, affection: 100 });
+  assert.equal(spaced.pet.exp, 2);
+  assert.equal(spaced.pet.lastContextActionAt.give_space, NOW + 10_000);
+
+  const base = petWithoutDailyTasks({ vitals: { hunger: 20, mood: 70, sleepiness: 20, affection: 10 } });
+  const bite = performContextAction(base, 'small_bite', NOW + 10_000);
+  const feed = performCareAction(base, 'feed', NOW + 10_000);
+  assert.ok(bite.pet.vitals.hunger - base.vitals.hunger < feed.pet.vitals.hunger - base.vitals.hunger);
+  assert.equal(bite.pet.exp, 2);
+});
+
+test('context action exp can level up consistently', () => {
+  const result = performContextAction(petWithoutDailyTasks({ exp: 49, level: 1, vitals: { hunger: 70, mood: 70, sleepiness: 80, affection: 10 } }), 'give_space', NOW + 10_000);
+  assert.equal(result.leveledUp, true);
+  assert.equal(result.newLevel, 2);
+  assert.equal(result.pet.level, 2);
+});
+
+test('describeVitals returns compact non-numeric gentle observations', () => {
+  const lines = describeVitals({ hunger: 10, mood: 10, sleepiness: 90, affection: 80 });
+  assert.ok(lines.length >= 1);
+  assert.ok(lines.length <= 4);
+  assert.equal(lines.some((line) => /\d/.test(line)), false);
+  assert.ok(lines.includes('少しおなかが空いていそう'));
+  assert.ok(lines.includes('少しすねている'));
+  assert.ok(lines.includes('少し眠そう'));
+  assert.ok(lines.includes('よくなついている'));
+  assert.equal(lines.some((line) => /遅い|さみしかった|なんで|放置|だめ|悪い/.test(line)), false);
+});
+
+test('v3 save migration fills settings and strips invalid context action keys', () => {
+  const save = sanitizeSave({
+    version: 2,
+    pet: { ...createInitialPetState(NOW), lastContextActionAt: { give_space: NOW, bad: NOW } },
+    settings: { alwaysOnTop: false, volume: 50, statusDisplayMode: 'bad', ambientFrequency: 'bad', bubbleFrequency: 'bad' },
+    lastLaunchedAt: NOW,
+  }, NOW);
+  assert.equal(save.version, CURRENT_SAVE_VERSION);
+  assert.equal(save.settings.statusDisplayMode, 'both');
+  assert.equal(save.settings.ambientFrequency, 'normal');
+  assert.equal(save.settings.bubbleFrequency, 'normal');
+  assert.equal(save.settings.reduceActivityWhenFullscreen, true);
+  assert.deepEqual(save.pet.lastContextActionAt, { give_space: NOW });
 });

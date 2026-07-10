@@ -14,13 +14,21 @@ import type {
   PetVitals,
   SaveData,
   SaveSettings,
+  StatusDisplayMode,
+  AmbientFrequency,
+  BubbleFrequency,
+  ContextActionId,
 } from './types';
 
-export const CURRENT_SAVE_VERSION = 2;
+export const CURRENT_SAVE_VERSION = 3;
 
 export const DEFAULT_SETTINGS: SaveSettings = {
   alwaysOnTop: false,
   volume: 50,
+  statusDisplayMode: 'both',
+  ambientFrequency: 'normal',
+  bubbleFrequency: 'normal',
+  reduceActivityWhenFullscreen: true,
 };
 
 export function createInitialPetState(now: number): PetState {
@@ -40,6 +48,7 @@ export function createInitialPetState(now: number): PetState {
     lastUpdatedAt: now,
     lastCareAt: now,
     lastActionAt: {},
+    lastContextActionAt: {},
     pendingDecayMs: 0,
     highMoodMs: 0,
     lastRandomEventAt: now,
@@ -84,11 +93,23 @@ function sanitizeVitals(raw: unknown, fallback: PetVitals): PetVitals {
   };
 }
 
+const STATUS_DISPLAY_MODES: readonly StatusDisplayMode[] = ['numbers', 'observation', 'both'];
+const AMBIENT_FREQUENCIES: readonly AmbientFrequency[] = ['quiet', 'normal', 'lively'];
+const BUBBLE_FREQUENCIES: readonly BubbleFrequency[] = ['off', 'quiet', 'normal'];
+
+function enumValue<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return typeof value === 'string' && allowed.includes(value as T) ? (value as T) : fallback;
+}
+
 function sanitizeSettings(raw: unknown): SaveSettings {
   const data = isRecord(raw) ? raw : {};
   return {
     alwaysOnTop: typeof data.alwaysOnTop === 'boolean' ? data.alwaysOnTop : DEFAULT_SETTINGS.alwaysOnTop,
     volume: vital(data.volume, DEFAULT_SETTINGS.volume),
+    statusDisplayMode: enumValue(data.statusDisplayMode, STATUS_DISPLAY_MODES, DEFAULT_SETTINGS.statusDisplayMode),
+    ambientFrequency: enumValue(data.ambientFrequency, AMBIENT_FREQUENCIES, DEFAULT_SETTINGS.ambientFrequency),
+    bubbleFrequency: enumValue(data.bubbleFrequency, BUBBLE_FREQUENCIES, DEFAULT_SETTINGS.bubbleFrequency),
+    reduceActivityWhenFullscreen: typeof data.reduceActivityWhenFullscreen === 'boolean' ? data.reduceActivityWhenFullscreen : DEFAULT_SETTINGS.reduceActivityWhenFullscreen,
   };
 }
 
@@ -160,6 +181,17 @@ function sanitizeCareStats(raw: unknown, fallback: PetState['careStats']): PetSt
   };
 }
 
+const CONTEXT_ACTION_IDS: readonly ContextActionId[] = ['give_space', 'wait_gently', 'look_together', 'stay_together', 'small_bite', 'tidy_habitat'];
+
+function sanitizeLastContextActionAt(raw: unknown): PetState['lastContextActionAt'] {
+  if (!isRecord(raw)) return {};
+  const result: Partial<Record<ContextActionId, number>> = {};
+  for (const action of CONTEXT_ACTION_IDS) {
+    if (typeof raw[action] === 'number' && Number.isFinite(raw[action])) result[action] = raw[action];
+  }
+  return result;
+}
+
 function sanitizeLastActionAt(raw: unknown): PetState['lastActionAt'] {
   if (!isRecord(raw)) return {};
   const result: Partial<Record<CareActionId, number>> = {};
@@ -203,7 +235,8 @@ function sanitizeJournalEntries(raw: unknown): DailyJournalEntry[] {
 export function migrateSave(raw: unknown): unknown {
   if (!isRecord(raw)) return null;
   if (raw.version === CURRENT_SAVE_VERSION) return raw;
-  if (raw.version === 1) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, journalEntries: [] } : raw.pet };
+  if (raw.version === 1) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, journalEntries: [], lastContextActionAt: {} } : raw.pet };
+  if (raw.version === 2) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, lastContextActionAt: {} } : raw.pet };
   return null;
 }
 
@@ -237,6 +270,7 @@ function sanitizeCurrentVersionSave(raw: unknown, now: number): SaveData | null 
     lastUpdatedAt: finiteNumber(rawPet.lastUpdatedAt, fresh.lastUpdatedAt),
     lastCareAt: finiteNumber(rawPet.lastCareAt, fresh.lastCareAt),
     lastActionAt: sanitizeLastActionAt(rawPet.lastActionAt),
+    lastContextActionAt: sanitizeLastContextActionAt(rawPet.lastContextActionAt),
     pendingDecayMs: Math.max(0, finiteNumber(rawPet.pendingDecayMs, fresh.pendingDecayMs)),
     highMoodMs: Math.max(0, finiteNumber(rawPet.highMoodMs, fresh.highMoodMs)),
     lastRandomEventAt: finiteNumber(rawPet.lastRandomEventAt, fresh.lastRandomEventAt),

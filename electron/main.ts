@@ -19,7 +19,7 @@ const SCREEN_MARGIN = 12;
 type StoreSchema = {
   version: number;
   pet: unknown;
-  settings: { alwaysOnTop: boolean; volume: number };
+  settings: { alwaysOnTop: boolean; volume: number; statusDisplayMode?: string; ambientFrequency?: string; bubbleFrequency?: string; reduceActivityWhenFullscreen?: boolean };
   windowPosition: { x: number; y: number } | null;
   lastLaunchedAt: number;
 };
@@ -31,7 +31,7 @@ const store = new Store<StoreSchema>({
   defaults: {
     version: 1,
     pet: null,
-    settings: { alwaysOnTop: false, volume: 50 },
+    settings: { alwaysOnTop: false, volume: 50, statusDisplayMode: 'both', ambientFrequency: 'normal', bubbleFrequency: 'normal', reduceActivityWhenFullscreen: true },
     windowPosition: null,
     lastLaunchedAt: 0,
   },
@@ -42,7 +42,7 @@ const backupStore = new Store<SaveEnvelope>({
   defaults: {
     version: 1,
     pet: null,
-    settings: { alwaysOnTop: false, volume: 50 },
+    settings: { alwaysOnTop: false, volume: 50, statusDisplayMode: 'both', ambientFrequency: 'normal', bubbleFrequency: 'normal', reduceActivityWhenFullscreen: true },
     windowPosition: null,
     lastLaunchedAt: 0,
   },
@@ -253,6 +253,14 @@ function registerIpc() {
   ipcMain.handle('settings:set-always-on-top', (_event, value: boolean) => {
     setAlwaysOnTop(Boolean(value));
     return store.get('settings').alwaysOnTop;
+  });
+
+  ipcMain.handle('settings:set', (_event, partial: Record<string, unknown>) => {
+    const current = store.get('settings');
+    writeBackup();
+    store.set('settings', { ...current, ...partial });
+    updateTrayMenu();
+    return store.get('settings');
   });
 
   ipcMain.handle('window:set-size', (_event, width: number, height: number) => {
