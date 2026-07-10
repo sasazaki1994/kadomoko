@@ -57,6 +57,8 @@ export type DayPeriod =
   | 'night'
   | 'lateNight';
 
+export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
+
 /**
  * Long-running action persisted in save data ('none' when free).
  * Short animations such as resting are PetMachineState-only temporary states.
@@ -128,7 +130,11 @@ export type EpisodeId =
   | 'played_follow_dot'
   | 'peeked_from_corner'
   | 'made_a_small_turn'
-  | 'watched_tiny_play';
+  | 'watched_tiny_play'
+  | 'felt_spring_air'
+  | 'found_cool_shade'
+  | 'listened_to_quiet_leaves'
+  | 'curled_up_warm';
 
 export type EpisodeTrigger =
   | 'day_rollover'

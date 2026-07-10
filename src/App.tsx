@@ -6,6 +6,7 @@ import PetMenu from './components/PetMenu';
 import SpeechBubble from './components/SpeechBubble';
 import TinyPlayLayer from './components/TinyPlayLayer';
 import RecordPanel from './components/RecordPanel';
+import SeasonAmbient from './components/SeasonAmbient';
 import StatusPanel from './components/StatusPanel';
 import { BALANCE } from './game/data/balance';
 import { usePetStore } from './store/usePetStore';
@@ -61,6 +62,7 @@ export default function App() {
         setMenuOpen(!menuOpen);
       }}
     >
+      <SeasonAmbient hidden={menuOpen || panelOpen || recordPanelOpen || devPanelOpen} />
       {!menuOpen && !panelOpen && !recordPanelOpen && !devPanelOpen && <DiscoveryHint discovery={activeDiscovery} />}
       <SpeechBubble />
       <TinyPlayLayer active={activeTinyPlay} hidden={menuOpen || panelOpen || recordPanelOpen || devPanelOpen} />

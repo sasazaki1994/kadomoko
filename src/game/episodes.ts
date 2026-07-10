@@ -1,6 +1,6 @@
-import { getDayPeriod } from './lifeRhythm';
+import { getDayPeriod, getSeason } from './lifeRhythm';
 import { EPISODE_IDS, EPISODE_TEXT } from './data/episodes';
-import type { EpisodeEntry, EpisodeId, EpisodeTrigger, PetState } from './types';
+import type { EpisodeEntry, EpisodeId, EpisodeTrigger, PetState, Season } from './types';
 
 const MAX_PER_DAY = 2;
 export const MAX_EPISODE_ENTRIES = 60;
@@ -25,6 +25,13 @@ function hasProp(pet: PetState, id: string): boolean {
   return pet.unlockedPropIds.includes(id);
 }
 
+const SEASON_EPISODE_ID: Record<Season, EpisodeId> = {
+  spring: 'felt_spring_air',
+  summer: 'found_cool_shade',
+  autumn: 'listened_to_quiet_leaves',
+  winter: 'curled_up_warm',
+};
+
 export function createEpisodeCandidates(pet: PetState, trigger: EpisodeTrigger, now: number): EpisodeEntry[] {
   const candidates: EpisodeEntry[] = [];
   const period = getDayPeriod(new Date(now));
@@ -41,6 +48,11 @@ export function createEpisodeCandidates(pet: PetState, trigger: EpisodeTrigger, 
   if (period === 'morning' && pet.vitals.mood >= 60) candidates.push(entry('gentle_morning', trigger, now));
   if ((period === 'night' || period === 'lateNight') && pet.vitals.sleepiness >= 60) candidates.push(entry('sleepy_night', trigger, now));
   if (hasProp(pet, 'small_cloth') && pet.vitals.mood >= 60) candidates.push(entry('calm_corner', trigger, now, [], ['small_cloth']));
+  // Seasonal note: only on quiet day rollovers, so seasons color the record
+  // without competing with care-driven episodes.
+  if (trigger === 'day_rollover' && pet.vitals.mood >= 50 && candidates.length < MAX_PER_DAY) {
+    candidates.push(entry(SEASON_EPISODE_ID[getSeason(new Date(now))], trigger, now));
+  }
 
   return candidates.slice(0, MAX_PER_DAY);
 }
@@ -68,7 +80,7 @@ export function appendEpisodeEntries(existing: EpisodeEntry[], candidates: Episo
   const next = sanitizeEpisodeEntries(existing, maxEntries);
   const perDate = new Map<string, number>();
   for (const item of next) perDate.set(item.date, (perDate.get(item.date) ?? 0) + 1);
-  for (const candidate of sanitizeEpisodeEntries(candidates, MAX_PER_DAY)) {
+  for (const candidate of sanitizeEpisodeEntries(candidates, maxEntries)) {
     if ((perDate.get(candidate.date) ?? 0) >= MAX_PER_DAY) continue;
     if (next.some((item) => item.date === candidate.date && item.id === candidate.id)) continue;
     next.push(candidate);

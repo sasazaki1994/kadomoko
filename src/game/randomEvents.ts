@@ -3,8 +3,9 @@ import {
   RANDOM_EVENT_MIN_GAP_MS,
   RANDOM_EVENT_POOL,
 } from './data/randomEvents';
-import { getLifeRhythmHints } from './lifeRhythm';
-import type { DiscoveryEntry, EpisodeEntry, CurrentAction, DayPeriod, Personality, PetVitals, RandomEventDef, RandomEventTag } from './types';
+import { SEASON_EVENT_BOOST, SEASON_EVENT_TAGS } from './data/lifeRhythm';
+import { getLifeRhythmHints, getSeason } from './lifeRhythm';
+import type { DiscoveryEntry, EpisodeEntry, CurrentAction, DayPeriod, Personality, PetVitals, RandomEventDef, RandomEventTag, Season } from './types';
 
 export type RandomEventContext = {
   now: number;
@@ -13,6 +14,7 @@ export type RandomEventContext = {
   affection: number;
   currentAction: CurrentAction;
   dayPeriod: DayPeriod;
+  season?: Season;
   activeTogetherTimeMs: number;
   lastCareAt: number;
   episodes?: EpisodeEntry[];
@@ -43,6 +45,9 @@ export function getRandomEventWeight(event: RandomEventDef, context: RandomEvent
 
   if (context.dayPeriod === 'morning') boost(['stretch', 'curious', 'morning'], 0.8);
   if (context.dayPeriod === 'night' || context.dayPeriod === 'lateNight') boost(['sleepy', 'sleeping', 'night'], 0.9);
+
+  const season = context.season ?? getSeason(new Date(context.now));
+  boost([...SEASON_EVENT_TAGS[season]], SEASON_EVENT_BOOST);
 
   const recentIds = new Set((context.episodes ?? []).slice(-8).map((episode) => episode.id));
   if (recentIds.has('found_old_note')) boost(['curious'], 0.35);
@@ -96,7 +101,7 @@ export function maybeRollRandomEvent(
     activeTogetherTimeMs: context.activeTogetherTimeMs,
     lastCareAt: context.lastCareAt,
   });
-  return pickWeightedRandomEvent({ ...context, dayPeriod: context.dayPeriod ?? hints.dayPeriod }, rng);
+  return pickWeightedRandomEvent({ ...context, dayPeriod: context.dayPeriod ?? hints.dayPeriod, season: context.season ?? hints.season }, rng);
 }
 
 export function pickRandomEvent(rng: () => number = Math.random): RandomEventDef {

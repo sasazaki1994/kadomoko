@@ -21,6 +21,10 @@ export const EPISODE_TEXT: Record<EpisodeId, { title: string; text: string }> = 
   peeked_from_corner: { title: 'すみっこ', text: '少し隠れて、また出てきた。' },
   made_a_small_turn: { title: '小さな回転', text: 'ゆっくり回っていた。' },
   watched_tiny_play: { title: '小さな遊び', text: '小さな遊びをしていた。' },
+  felt_spring_air: { title: '春の気配', text: '春の気配をかいでいるようだった。' },
+  found_cool_shade: { title: '涼しい場所', text: '涼しそうな場所を見つけて落ち着いていた。' },
+  listened_to_quiet_leaves: { title: '葉の音', text: '遠くの葉の音を聞いているようだった。' },
+  curled_up_warm: { title: 'ぬくもり', text: '丸くなって、ぬくぬくしていた。' },
 };
 
 export const EPISODE_IDS = Object.keys(EPISODE_TEXT) as EpisodeId[];
