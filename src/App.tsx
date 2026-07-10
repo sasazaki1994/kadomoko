@@ -4,6 +4,7 @@ import DiscoveryHint from './components/DiscoveryHint';
 import PetCharacter from './components/PetCharacter';
 import PetMenu from './components/PetMenu';
 import SpeechBubble from './components/SpeechBubble';
+import TinyPlayLayer from './components/TinyPlayLayer';
 import RecordPanel from './components/RecordPanel';
 import StatusPanel from './components/StatusPanel';
 import { BALANCE } from './game/data/balance';
@@ -21,6 +22,7 @@ export default function App() {
   const devPanelOpen = usePetStore((s) => s.devPanelOpen);
   const recordPanelOpen = usePetStore((s) => s.recordPanelOpen);
   const activeDiscovery = usePetStore((s) => s.pet.discovery.active);
+  const activeTinyPlay = usePetStore((s) => s.pet.tinyPlay.active);
   const init = usePetStore((s) => s.init);
   const tick = usePetStore((s) => s.tick);
   const catchUpOffline = usePetStore((s) => s.catchUpOffline);
@@ -61,6 +63,7 @@ export default function App() {
     >
       {!menuOpen && !panelOpen && !recordPanelOpen && !devPanelOpen && <DiscoveryHint discovery={activeDiscovery} />}
       <SpeechBubble />
+      <TinyPlayLayer active={activeTinyPlay} hidden={menuOpen || panelOpen || recordPanelOpen || devPanelOpen} />
       <PetCharacter />
       {menuOpen && <PetMenu />}
       {panelOpen && <StatusPanel />}

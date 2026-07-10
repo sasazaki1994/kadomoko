@@ -10,6 +10,8 @@ import {
   SPEECH_PACK_EXTRA,
 } from '../game/data/speechMessages';
 import { maybeRollDiscovery, resolveDiscovery } from '../game/discoveries';
+import { applySecretSignalReaction, createEmptySignalState, recordSignalInput } from '../game/signals';
+import { advanceTinyPlay, interactWithTinyPlay, maybeStartTinyPlay, createEmptyTinyPlayState } from '../game/tinyPlays';
 import { getLifeRhythmHints } from '../game/lifeRhythm';
 import { maybeRollRandomEvent, pickRandomEvent } from '../game/randomEvents';
 import {
@@ -99,6 +101,10 @@ export type PetStore = {
   devForceDiscovery: () => void;
   devResolveDiscovery: () => void;
   devExpireDiscovery: () => void;
+  devForceSignal: () => void;
+  devForceTinyPlay: () => void;
+  devEndTinyPlay: () => void;
+  devResetSignals: () => void;
 };
 
 let tempStateTimer: ReturnType<typeof setTimeout> | null = null;
@@ -131,6 +137,21 @@ export const usePetStore = create<PetStore>((set, get) => {
       showTempState('reaction', event.effect, event.durationMs);
     }
     if (event.bubble) get().showBubble(event.bubble);
+  };
+
+  const reactToSignal = (pet: PetState, signalId: Parameters<typeof applySecretSignalReaction>[1], now: number) => {
+    const result = applySecretSignalReaction(pet, signalId, now);
+    applyPetUpdate(result.pet);
+    if (result.tempState && isTempState(result.tempState)) showTempState(result.tempState, (result.effect as CharacterEffect) ?? 'gaze', 3_000);
+    if (result.bubble) get().showBubble(result.bubble, true);
+  };
+
+  const recordSignal = (pet: PetState, input: Parameters<typeof recordSignalInput>[1]) => {
+    const now = Date.now();
+    const result = recordSignalInput(pet, input, now);
+    if (result.triggered[0]) reactToSignal(result.pet, result.triggered[0], now);
+    else applyPetUpdate(result.pet);
+    return result.pet;
   };
 
   const applyPetUpdate = (
@@ -211,6 +232,11 @@ export const usePetStore = create<PetStore>((set, get) => {
       }, Math.random, AMBIENT_MULTIPLIER[settings.ambientFrequency]);
       const discoveryRoll = maybeRollDiscovery(next, now, { ambientFrequency: settings.ambientFrequency });
       next = discoveryRoll.pet;
+      const tinyAdvanced = advanceTinyPlay(next, now);
+      next = tinyAdvanced.pet;
+      if (tinyAdvanced.ended && tinyAdvanced.effect) showTempState('reaction', tinyAdvanced.effect as CharacterEffect, 2_500);
+      if (tinyAdvanced.ended && tinyAdvanced.bubble) showBubble(tinyAdvanced.bubble);
+      if (!tinyAdvanced.ended) next = maybeStartTinyPlay(next, now, { ambientFrequency: settings.ambientFrequency }).pet;
 
       if (event) {
         next = { ...next, lastRandomEventAt: now };
@@ -236,6 +262,7 @@ export const usePetStore = create<PetStore>((set, get) => {
       const result = progressTime(get().pet, now, { online: false });
       applyPetUpdate(result.pet, { leveledUp: result.leveledUp, newLevel: result.newLevel });
       if (!result.leveledUp) showDailyTaskBubble(result.completedTaskIds);
+      recordSignal(result.pet, { input: 'click', at: now, detail: 'resume' });
       if (fromResume && now - lastResumeReactionAt >= RESUME_REACTION_MIN_GAP_MS) {
         lastResumeReactionAt = now;
         showTempState('curious', 'gaze', 3_000);
@@ -245,6 +272,7 @@ export const usePetStore = create<PetStore>((set, get) => {
 
     performAction: (action) => {
       const now = Date.now();
+      recordSignal(get().pet, { input: 'care_action', at: now, detail: action });
       const result = performCareAction(get().pet, action, now);
       if (!result.ok) {
         if (result.tempState && isTempState(result.tempState)) {
@@ -271,6 +299,9 @@ export const usePetStore = create<PetStore>((set, get) => {
 
     performContextAction: (action) => {
       const now = Date.now();
+      const tiny = interactWithTinyPlay(get().pet, now);
+      if (tiny.bubble) { applyPetUpdate(tiny.pet); if (tiny.tempState && isTempState(tiny.tempState)) showTempState(tiny.tempState, 'hop'); get().showBubble(tiny.bubble, true); set({ menuOpen: false }); return; }
+      recordSignal(get().pet, { input: 'context_action', at: now, detail: action });
       const result = performContextCareAction(get().pet, action, now);
       if (!result.ok) {
         if (result.tempState && isTempState(result.tempState)) showTempState(result.tempState, 'wiggle');
@@ -297,10 +328,11 @@ export const usePetStore = create<PetStore>((set, get) => {
       const reaction = pool[Math.floor(Math.random() * pool.length)];
       showTempState('reaction', reaction.effect, REACTION_DURATION_MS);
       if (reaction.bubble) showBubble(reaction.bubble);
+      recordSignal(get().pet, { input: 'click', at: Date.now() });
     },
 
-    togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen, menuOpen: false, recordPanelOpen: false })),
-    setMenuOpen: (open) => set({ menuOpen: open }),
+    togglePanel: () => { const now = Date.now(); recordSignal(get().pet, { input: 'panel_open', at: now }); set((s) => ({ panelOpen: !s.panelOpen, menuOpen: false, recordPanelOpen: false })); },
+    setMenuOpen: (open) => { if (open) recordSignal(get().pet, { input: 'menu_open', at: Date.now() }); set({ menuOpen: open }); },
     toggleDevPanel: () => set((s) => ({ devPanelOpen: !s.devPanelOpen })),
     toggleRecordPanel: () => set((s) => ({ recordPanelOpen: !s.recordPanelOpen, menuOpen: false, panelOpen: false })),
 
@@ -413,6 +445,11 @@ export const usePetStore = create<PetStore>((set, get) => {
       const pet = get().pet;
       applyPetUpdate({ ...pet, discovery: { ...pet.discovery, active: null, lastRolledAt: Date.now() } });
     },
+
+    devForceSignal: () => reactToSignal(get().pet, 'tap_tap_pause', Date.now()),
+    devForceTinyPlay: () => applyPetUpdate(maybeStartTinyPlay(get().pet, Date.now(), { force: true, rng: () => 0 }).pet),
+    devEndTinyPlay: () => { const pet = get().pet; applyPetUpdate({ ...pet, tinyPlay: { ...pet.tinyPlay, active: null } }); },
+    devResetSignals: () => applyPetUpdate({ ...get().pet, signals: createEmptySignalState(Date.now()), tinyPlay: createEmptyTinyPlayState(Date.now()) }),
   };
 });
 
