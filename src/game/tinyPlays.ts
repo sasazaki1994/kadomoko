@@ -6,6 +6,8 @@ import type { EpisodeEntry, PetMachineState, PetState, TinyPlayId, TinyPlayState
 
 const MIN_GAP_MS = 3 * 60 * 60_000;
 const CHANCE = { quiet: 0.004, normal: 0.012, lively: 0.018 } as const;
+/** Keep a just-finished session around so advanceTinyPlay can complete it. */
+const ENDED_GRACE_MS = 10 * 60_000;
 function date(now: number) { return new Date(now).toISOString().slice(0, 10); }
 function rec(v: unknown): v is Record<string, unknown> { return !!v && typeof v === 'object' && !Array.isArray(v); }
 function n(v: unknown, f: number) { return typeof v === 'number' && Number.isFinite(v) ? v : f; }
@@ -18,7 +20,10 @@ export function sanitizeTinyPlayState(raw: unknown, now: number): TinyPlayState 
   let active: TinyPlayState['active'] = null;
   if (rec(data.active) && TINY_PLAY_IDS.includes(data.active.id as TinyPlayId)) {
     const startedAt = n(data.active.startedAt, now); const endsAt = n(data.active.endsAt, startedAt + TINY_PLAY_DEFS[data.active.id as TinyPlayId].durationMs);
-    if (endsAt > now) active = { id: data.active.id as TinyPlayId, startedAt, endsAt, phase: data.active.phase === 'ending' || data.active.phase === 'playing' ? data.active.phase : 'starting', interacted: data.active.interacted === true };
+    if (endsAt + ENDED_GRACE_MS > now) {
+      const phase = endsAt <= now ? 'ending' : data.active.phase === 'ending' || data.active.phase === 'playing' ? data.active.phase : 'starting';
+      active = { id: data.active.id as TinyPlayId, startedAt, endsAt, phase, interacted: data.active.interacted === true };
+    }
   }
   const rawCompleted = Array.isArray(data.completedToday) ? data.completedToday : [];
   const completedToday = data.date === today ? [...new Set(rawCompleted.filter((id): id is TinyPlayId => TINY_PLAY_IDS.includes(id as TinyPlayId)))] : [];
@@ -53,7 +58,7 @@ export function advanceTinyPlay(pet: PetState, now: number): { pet: PetState; en
 
 export function interactWithTinyPlay(pet: PetState, now: number): { pet: PetState; bubble?: string; tempState?: PetMachineState } {
   const tinyPlay = sanitizeTinyPlayState(pet.tinyPlay, now);
-  if (!tinyPlay.active) return { pet: { ...pet, tinyPlay } };
+  if (!tinyPlay.active || now >= tinyPlay.active.endsAt) return { pet: { ...pet, tinyPlay } };
   const next = grantExp({ ...pet, tinyPlay: { ...tinyPlay, active: { ...tinyPlay.active, interacted: true } } }, 1).pet;
   return { pet: next, bubble: 'いい感じ', tempState: tinyPlay.active.id === 'mirror_bounce' ? 'playing' : 'curious' };
 }

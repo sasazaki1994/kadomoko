@@ -260,15 +260,30 @@ function sanitizeJournalEntries(raw: unknown): DailyJournalEntry[] {
   }).slice(-30);
 }
 
+/**
+ * Fields added since each save version. Spread before the raw pet so real
+ * data always wins; migration only fills in what a version could not have.
+ */
+function migrationDefaults(version: number): Record<string, unknown> {
+  const now = Date.now();
+  const defaults: Record<string, unknown> = {};
+  if (version <= 1) Object.assign(defaults, { journalEntries: [] });
+  if (version <= 2) Object.assign(defaults, { lastContextActionAt: {} });
+  if (version <= 3) Object.assign(defaults, { episodes: [], weeklyReflections: [] });
+  if (version <= 4) Object.assign(defaults, { discovery: createEmptyDiscoveryState(now) });
+  if (version <= 5) Object.assign(defaults, { signals: createEmptySignalState(now), tinyPlay: createEmptyTinyPlayState(now) });
+  return defaults;
+}
+
 export function migrateSave(raw: unknown): unknown {
   if (!isRecord(raw)) return null;
   if (raw.version === CURRENT_SAVE_VERSION) return raw;
-  if (raw.version === 1) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, journalEntries: [], lastContextActionAt: {} } : raw.pet };
-  if (raw.version === 2) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, lastContextActionAt: {}, episodes: [], weeklyReflections: [] } : raw.pet };
-  if (raw.version === 3) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, episodes: [], weeklyReflections: [], discovery: createEmptyDiscoveryState(Date.now()) } : raw.pet };
-  if (raw.version === 4) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, discovery: createEmptyDiscoveryState(Date.now()), signals: createEmptySignalState(Date.now()), tinyPlay: createEmptyTinyPlayState(Date.now()) } : raw.pet };
-  if (raw.version === 5) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, signals: createEmptySignalState(Date.now()), tinyPlay: createEmptyTinyPlayState(Date.now()) } : raw.pet };
-  return null;
+  if (typeof raw.version !== 'number' || raw.version < 1 || raw.version > CURRENT_SAVE_VERSION) return null;
+  return {
+    ...raw,
+    version: CURRENT_SAVE_VERSION,
+    pet: isRecord(raw.pet) ? { ...migrationDefaults(raw.version), ...raw.pet } : raw.pet,
+  };
 }
 
 function sanitizeCurrentVersionSave(raw: unknown, now: number): SaveData | null {
