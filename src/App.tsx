@@ -45,6 +45,14 @@ export default function App() {
   }, [catchUpOffline]);
 
   useEffect(() => {
+    // Keep the in-app menu in sync when always-on-top is toggled from the tray.
+    const unsubscribe = window.kadomoco?.onAlwaysOnTopChanged((value) => {
+      usePetStore.setState((s) => ({ alwaysOnTop: value, settings: { ...s.settings, alwaysOnTop: value } }));
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     const expanded = panelOpen || devPanelOpen || menuOpen || recordPanelOpen;
     const size = expanded ? WINDOW_EXPANDED : WINDOW_NORMAL;
     void window.kadomoco?.setWindowSize(size, size);
