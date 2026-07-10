@@ -20,9 +20,12 @@ function machineState(pet: PetState) {
 }
 
 function placedHabitatItemIds(pet: PetState): string[] {
+  // A dedicated habitat system does not exist yet; fall back to unlocked props
+  // (same data source as discoveries.ts) so these actions stay reachable.
   const maybe = pet as PetState & { habitat?: { placedItemIds?: unknown }; placedItemIds?: unknown };
   const ids = Array.isArray(maybe.habitat?.placedItemIds) ? maybe.habitat?.placedItemIds : maybe.placedItemIds;
-  return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : [];
+  if (Array.isArray(ids)) return ids.filter((id): id is string => typeof id === 'string');
+  return pet.unlockedPropIds;
 }
 
 function hasPlacedHabitatItems(pet: PetState): boolean {
