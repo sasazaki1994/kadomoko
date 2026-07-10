@@ -5,6 +5,7 @@ import { INITIAL_VITALS } from './vitals';
 import type {
   CareActionId,
   CurrentAction,
+  DailyJournalEntry,
   DailyTaskId,
   DailyTasksState,
   Personality,
@@ -15,7 +16,7 @@ import type {
   SaveSettings,
 } from './types';
 
-export const CURRENT_SAVE_VERSION = 1;
+export const CURRENT_SAVE_VERSION = 2;
 
 export const DEFAULT_SETTINGS: SaveSettings = {
   alwaysOnTop: false,
@@ -42,6 +43,7 @@ export function createInitialPetState(now: number): PetState {
     pendingDecayMs: 0,
     highMoodMs: 0,
     lastRandomEventAt: now,
+    journalEntries: [],
   };
 }
 
@@ -177,14 +179,31 @@ function sanitizePersonalityHistory(raw: unknown): PersonalityHistoryEntry[] {
   });
 }
 
-/**
- * Placeholder for future save migrations. v0.1 only has version 1, so unknown
- * versions are rejected here and callers may try a backup before creating a
- * fresh save.
- */
+function sanitizeJournalEntries(raw: unknown): DailyJournalEntry[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(isRecord).flatMap((entry) => {
+    if (typeof entry.date !== 'string' || !isRecord(entry.careCounts)) return [];
+    const finalVitals = sanitizeVitals(entry.finalVitals, INITIAL_VITALS);
+    return [{
+      date: entry.date,
+      careCounts: {
+        feed: Math.max(0, Math.round(finiteNumber(entry.careCounts.feed, 0))),
+        touch: Math.max(0, Math.round(finiteNumber(entry.careCounts.touch, 0))),
+        play: Math.max(0, Math.round(finiteNumber(entry.careCounts.play, 0))),
+        rest: Math.max(0, Math.round(finiteNumber(entry.careCounts.rest, 0))),
+      },
+      finalVitals,
+      personality: sanitizePersonality(entry.personality, 'normal'),
+      completedTaskCount: Math.max(0, Math.round(finiteNumber(entry.completedTaskCount, 0))),
+      note: typeof entry.note === 'string' && entry.note.length <= 40 ? entry.note : 'ゆっくり過ごした',
+    }];
+  }).slice(-30);
+}
+
 export function migrateSave(raw: unknown): unknown {
   if (!isRecord(raw)) return null;
   if (raw.version === CURRENT_SAVE_VERSION) return raw;
+  if (raw.version === 1) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, journalEntries: [] } : raw.pet };
   return null;
 }
 
@@ -221,6 +240,7 @@ function sanitizeCurrentVersionSave(raw: unknown, now: number): SaveData | null 
     pendingDecayMs: Math.max(0, finiteNumber(rawPet.pendingDecayMs, fresh.pendingDecayMs)),
     highMoodMs: Math.max(0, finiteNumber(rawPet.highMoodMs, fresh.highMoodMs)),
     lastRandomEventAt: finiteNumber(rawPet.lastRandomEventAt, fresh.lastRandomEventAt),
+    journalEntries: sanitizeJournalEntries(rawPet.journalEntries),
   };
   return {
     version: CURRENT_SAVE_VERSION,

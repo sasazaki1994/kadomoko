@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { performCareAction } from '../src/game/actions';
+import { buildDailySummary } from '../src/game/dailySummary';
 import { BALANCE } from '../src/game/data/balance';
+import { getDayPeriod, getLifeRhythmHints } from '../src/game/lifeRhythm';
+import { getRandomEventWeight, pickWeightedRandomEvent, type RandomEventContext } from '../src/game/randomEvents';
 import { dailyTaskCompletionBubble, getDailyTaskProgress, rollDailyTasks } from '../src/game/dailyTasks';
 import { gainExp, LEVEL_REQUIREMENTS } from '../src/game/level';
 import { computeTendency, EMPTY_CARE_STATS, resolvePersonality } from '../src/game/personality';
@@ -208,4 +211,117 @@ test('recoverSave creates initial data only when primary and backup cannot be us
   const recovered = recoverSave({ version: 999, pet: null }, { version: 999, pet: null }, NOW);
   assert.equal(recovered.source, 'initial');
   assert.deepEqual(recovered.save.pet.vitals, createInitialPetState(NOW).vitals);
+});
+
+test('life rhythm returns local day periods and quiet hints', () => {
+  assert.equal(getDayPeriod(new Date(2026, 6, 9, 5, 0)), 'morning');
+  assert.equal(getDayPeriod(new Date(2026, 6, 9, 10, 59)), 'morning');
+  assert.equal(getDayPeriod(new Date(2026, 6, 9, 11, 0)), 'daytime');
+  assert.equal(getDayPeriod(new Date(2026, 6, 9, 17, 0)), 'evening');
+  assert.equal(getDayPeriod(new Date(2026, 6, 9, 21, 0)), 'night');
+  assert.equal(getDayPeriod(new Date(2026, 6, 9, 4, 59)), 'lateNight');
+
+  const base = pet({ vitals: { hunger: 70, mood: 70, sleepiness: 85, affection: 10 } });
+  const late = getLifeRhythmHints({
+    now: new Date(2026, 6, 9, 1, 0).getTime(),
+    vitals: base.vitals,
+    personality: base.personality,
+    currentAction: base.currentAction,
+    activeTogetherTimeMs: base.careStats.activeTogetherTimeMs,
+    lastCareAt: base.lastCareAt,
+  });
+  assert.ok(late.preferredEventTags.includes('sleepy'));
+  assert.ok(late.preferredEventTags.includes('sleeping'));
+
+  const morning = getLifeRhythmHints({
+    now: new Date(2026, 6, 9, 7, 0).getTime(),
+    vitals: base.vitals,
+    personality: base.personality,
+    currentAction: 'none',
+    activeTogetherTimeMs: base.careStats.activeTogetherTimeMs,
+    lastCareAt: base.lastCareAt,
+  });
+  assert.ok(morning.preferredEventTags.includes('stretch'));
+  assert.ok(morning.preferredEventTags.includes('curious'));
+});
+
+test('random event weights follow personality and vitals without crashing on empty pools', () => {
+  const base: RandomEventContext = {
+    now: NOW,
+    vitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 10 },
+    personality: 'normal',
+    affection: 10,
+    currentAction: 'none',
+    dayPeriod: 'daytime',
+    activeTogetherTimeMs: 0,
+    lastCareAt: NOW,
+  };
+  const hop = { id: 'x-hop', state: 'happy', effect: 'hop', durationMs: 1, tags: ['playing', 'hop', 'happy'], baseWeight: 1 } as const;
+  const calm = { id: 'x-calm', state: 'idle', durationMs: 1, tags: ['calm', 'idle'], baseWeight: 1 } as const;
+  const hungry = { id: 'x-hungry', state: 'hungry', durationMs: 1, tags: ['hungry'], baseWeight: 1 } as const;
+  const sleepy = { id: 'x-sleepy', state: 'sleepy', durationMs: 1, tags: ['sleepy'], baseWeight: 1 } as const;
+
+  assert.ok(getRandomEventWeight(hop, { ...base, personality: 'energetic' }) > getRandomEventWeight(calm, { ...base, personality: 'energetic' }));
+  assert.ok(getRandomEventWeight(calm, { ...base, personality: 'calm' }) > getRandomEventWeight(hop, { ...base, personality: 'calm' }));
+  assert.ok(getRandomEventWeight(hungry, { ...base, vitals: { ...base.vitals, hunger: 10 } }) > getRandomEventWeight(hungry, base));
+  assert.ok(getRandomEventWeight(sleepy, { ...base, vitals: { ...base.vitals, sleepiness: 90 } }) > getRandomEventWeight(sleepy, base));
+  assert.equal(pickWeightedRandomEvent(base, () => 0.5, []), null);
+});
+
+test('daily summary is short, never empty, and avoids blaming language', () => {
+  const summary = buildDailySummary(pet({
+    vitals: { hunger: 10, mood: 85, sleepiness: 90, affection: 10 },
+    careStats: { ...EMPTY_CARE_STATS, activeTogetherTimeMs: 3 * 60 * 60_000 },
+  }), NOW);
+  assert.ok(summary.length >= 1);
+  assert.ok(summary.length <= 3);
+  assert.ok(summary.includes('少し眠そう'));
+  assert.ok(summary.includes('おなかが空いていそう'));
+  assert.equal(summary.some((line) => /遅い|さみしかった|なんで|放置/.test(line)), false);
+});
+
+test('journal entries are created on day rollover and capped at 30', () => {
+  const entries = Array.from({ length: 30 }, (_, i) => ({
+    date: `2026-06-${String(i + 1).padStart(2, '0')}`,
+    careCounts: { feed: 0, touch: 0, play: 0, rest: 0 },
+    finalVitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 10 },
+    personality: 'normal' as const,
+    completedTaskCount: 0,
+    note: 'ゆっくり過ごした',
+  }));
+  const start = pet({
+    dailyTasks: { date: '2026-07-08', tasks: [{ id: 'feed_once', completed: true }], togetherMsToday: 0, goodMoodStreakMs: 0 },
+    journalEntries: entries,
+    lastUpdatedAt: new Date('2026-07-08T23:50:00').getTime(),
+  });
+  const progressed = progressTime(start, new Date('2026-07-09T00:10:00').getTime(), { online: true }).pet;
+  assert.equal(progressed.journalEntries.length, 30);
+  assert.equal(progressed.journalEntries.at(-1)?.date, '2026-07-08');
+  assert.equal(progressed.journalEntries.at(-1)?.completedTaskCount, 1);
+});
+
+test('v1 saves migrate to v2 and invalid journal entries are dropped', () => {
+  const v1 = {
+    version: 1,
+    pet: { ...createInitialPetState(NOW), journalEntries: [{ bad: true }] },
+    settings: { alwaysOnTop: false, volume: 50 },
+    lastLaunchedAt: NOW,
+  };
+  const migrated = sanitizeSave(v1, NOW);
+  assert.equal(migrated.version, CURRENT_SAVE_VERSION);
+  assert.deepEqual(migrated.pet.journalEntries, []);
+
+  const current = sanitizeSave({
+    ...v1,
+    version: CURRENT_SAVE_VERSION,
+    pet: {
+      ...v1.pet,
+      journalEntries: [
+        { bad: true },
+        { date: '2026-07-08', careCounts: { feed: 1, touch: 2, play: 3, rest: 4 }, finalVitals: { hunger: 1, mood: 2, sleepiness: 3, affection: 4 }, personality: 'calm', completedTaskCount: 2, note: 'よく一緒にいる' },
+      ],
+    },
+  }, NOW);
+  assert.equal(current.pet.journalEntries.length, 1);
+  assert.equal(current.pet.journalEntries[0].personality, 'calm');
 });

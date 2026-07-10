@@ -29,6 +29,13 @@ export type Personality =
 
 export type CareActionId = 'feed' | 'touch' | 'play' | 'rest';
 
+export type DayPeriod =
+  | 'morning'
+  | 'daytime'
+  | 'evening'
+  | 'night'
+  | 'lateNight';
+
 /**
  * Long-running action persisted in save data ('none' when free).
  * Short animations such as resting are PetMachineState-only temporary states.
@@ -80,6 +87,20 @@ export type PersonalityHistoryEntry = {
   tendency: Personality;
 };
 
+export type DailyJournalEntry = {
+  date: string;
+  careCounts: {
+    feed: number;
+    touch: number;
+    play: number;
+    rest: number;
+  };
+  finalVitals: PetVitals;
+  personality: Personality;
+  completedTaskCount: number;
+  note: string;
+};
+
 export type PetState = {
   vitals: PetVitals;
   exp: number;
@@ -105,6 +126,7 @@ export type PetState = {
   highMoodMs: number;
   /** epoch ms the last random event fired. */
   lastRandomEventAt: number;
+  journalEntries: DailyJournalEntry[];
 };
 
 export type SaveSettings = {
@@ -142,14 +164,35 @@ export type TimeProgressResult = {
   dayRolledOver: boolean;
 };
 
+export type CharacterEffectName = 'hop' | 'peek' | 'curl' | 'stretch' | 'gaze' | 'doze';
+
+export type RandomEventTag =
+  | 'happy'
+  | 'hungry'
+  | 'sleepy'
+  | 'sleeping'
+  | 'affection'
+  | 'moody'
+  | 'calm'
+  | 'morning'
+  | 'night'
+  | 'idle'
+  | 'peek'
+  | 'stretch'
+  | 'playing'
+  | 'hop'
+  | 'curious';
+
 export type RandomEventDef = {
   id: string;
   /** Machine state shown while the event plays. */
   state: PetMachineState;
   /** Extra CSS effect class applied to the character. */
-  effect?: 'hop' | 'peek' | 'curl' | 'stretch' | 'gaze' | 'doze';
+  effect?: CharacterEffectName;
   bubble?: string;
   durationMs: number;
+  tags: readonly RandomEventTag[];
+  baseWeight: number;
 };
 
 export type ClickReactionDef = {
