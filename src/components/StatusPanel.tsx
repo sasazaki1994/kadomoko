@@ -1,4 +1,5 @@
 import { expForNextLevel } from '../game/level';
+import { buildRelationshipNote } from '../game/relationship';
 import { describeVitals } from '../game/observation';
 import type { AmbientFrequency, BubbleFrequency, Personality, StatusDisplayMode } from '../game/types';
 import { usePetStore } from '../store/usePetStore';
@@ -34,6 +35,7 @@ export default function StatusPanel() {
   const updateSettings = usePetStore((s) => s.updateSettings);
 
   const nextExp = expForNextLevel(pet.level);
+  const relationship = buildRelationshipNote(pet);
   const observations = describeVitals(pet.vitals);
   const showNumbers = settings.statusDisplayMode === 'numbers' || settings.statusDisplayMode === 'both';
   const showObservation = settings.statusDisplayMode === 'observation' || settings.statusDisplayMode === 'both';
@@ -70,6 +72,7 @@ export default function StatusPanel() {
         <div className="personality-row">
           性格：{PERSONALITY_LABELS[pet.personality]}
         </div>
+        <div className="relationship-mini">関係：{relationship.label}</div>
         <DailySummary />
         <div className="settings-section">
           <label>表示：

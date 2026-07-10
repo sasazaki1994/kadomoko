@@ -137,3 +137,33 @@ Feature: KadoMoco desktop pet
     Given display and frequency settings are changed
     When the app is restarted
     Then the settings are restored
+
+  Scenario: A quiet episode is recorded from the day
+    Given the pet spent meaningful time with the user
+    When the local date rolls over
+    Then a short non-blaming episode may be stored
+    And duplicate episodes for the same date are not stored
+
+  Scenario: Recent episodes can be viewed
+    Given the pet has stored episode entries
+    When the user opens the record panel
+    Then recent episodes are shown in short text
+    And the normal pet window remains unobtrusive
+
+  Scenario: Weekly reflection summarizes without judging
+    Given journal entries exist for a week
+    When a weekly reflection is created
+    Then it summarizes the week in a short neutral sentence
+    And it does not rank or blame the user
+
+  Scenario: Relationship note describes the current bond
+    Given the pet has current affection, personality, and memory
+    When the status or record panel is opened
+    Then a short relationship note is displayed
+    And it is not shown as a score or rank
+
+  Scenario: Episode history is safely migrated
+    Given an older save file exists
+    When the app loads the save
+    Then episode and weekly reflection fields are added safely
+    And existing pet data is preserved

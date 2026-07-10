@@ -107,6 +107,41 @@ export type PersonalityHistoryEntry = {
   tendency: Personality;
 };
 
+export type EpisodeId =
+  | 'first_quiet_day'
+  | 'played_again'
+  | 'rested_well'
+  | 'found_old_note'
+  | 'watched_glow_speck'
+  | 'stayed_together'
+  | 'recovered_from_hunger'
+  | 'gentle_morning'
+  | 'sleepy_night'
+  | 'calm_corner';
+
+export type EpisodeTrigger =
+  | 'day_rollover'
+  | 'random_event'
+  | 'context_action'
+  | 'habitat_event'
+  | 'level_up'
+  | 'resume';
+
+export type EpisodeEntry = {
+  id: EpisodeId;
+  date: string;
+  title: string;
+  text: string;
+  trigger: EpisodeTrigger;
+  relatedMemoryFlagIds: string[];
+  relatedHabitatItemIds: string[];
+};
+
+export type RelationshipNote = {
+  label: string;
+  description: string;
+};
+
 export type DailyJournalEntry = {
   date: string;
   careCounts: {
@@ -119,6 +154,16 @@ export type DailyJournalEntry = {
   personality: Personality;
   completedTaskCount: number;
   note: string;
+};
+
+export type WeeklyReflection = {
+  weekStartDate: string;
+  weekEndDate: string;
+  summary: string;
+  dominantPersonality: Personality;
+  completedTaskTotal: number;
+  mostFrequentCareAction: CareActionId | null;
+  tone: 'calm' | 'active' | 'restful' | 'mixed';
 };
 
 export type PetState = {
@@ -149,6 +194,8 @@ export type PetState = {
   /** epoch ms the last random event fired. */
   lastRandomEventAt: number;
   journalEntries: DailyJournalEntry[];
+  episodes: EpisodeEntry[];
+  weeklyReflections: WeeklyReflection[];
 };
 
 export type SaveSettings = {

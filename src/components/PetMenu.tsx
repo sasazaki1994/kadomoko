@@ -17,6 +17,7 @@ export default function PetMenu() {
   const performContextAction = usePetStore((s) => s.performContextAction);
   const showBubble = usePetStore((s) => s.showBubble);
   const togglePanel = usePetStore((s) => s.togglePanel);
+  const toggleRecordPanel = usePetStore((s) => s.toggleRecordPanel);
   const toggleAlwaysOnTop = usePetStore((s) => s.toggleAlwaysOnTop);
   const setMenuOpen = usePetStore((s) => s.setMenuOpen);
   const quitApp = usePetStore((s) => s.quitApp);
@@ -72,6 +73,9 @@ export default function PetMenu() {
           }}
         >
           ステータスを見る
+        </button>
+        <button onClick={toggleRecordPanel}>
+          記録を見る
         </button>
         <button
           onClick={() => {

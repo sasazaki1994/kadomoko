@@ -66,6 +66,7 @@ export type PetStore = {
   panelOpen: boolean;
   menuOpen: boolean;
   devPanelOpen: boolean;
+  recordPanelOpen: boolean;
   alwaysOnTop: boolean;
   settings: SaveSettings;
 
@@ -79,6 +80,7 @@ export type PetStore = {
   togglePanel: () => void;
   setMenuOpen: (open: boolean) => void;
   toggleDevPanel: () => void;
+  toggleRecordPanel: () => void;
   toggleAlwaysOnTop: () => Promise<void>;
   quitApp: () => void;
   showBubble: (text: string, force?: boolean) => void;
@@ -155,6 +157,7 @@ export const usePetStore = create<PetStore>((set, get) => {
     panelOpen: false,
     menuOpen: false,
     devPanelOpen: false,
+    recordPanelOpen: false,
     alwaysOnTop: false,
     settings: { alwaysOnTop: false, volume: 50, statusDisplayMode: 'both', ambientFrequency: 'normal', bubbleFrequency: 'normal', reduceActivityWhenFullscreen: true },
 
@@ -199,6 +202,7 @@ export const usePetStore = create<PetStore>((set, get) => {
         dayPeriod: hints.dayPeriod,
         activeTogetherTimeMs: next.careStats.activeTogetherTimeMs,
         lastCareAt: next.lastCareAt,
+        episodes: next.episodes,
       }, Math.random, AMBIENT_MULTIPLIER[settings.ambientFrequency]);
       if (event) {
         next = { ...next, lastRandomEventAt: now };
@@ -287,9 +291,10 @@ export const usePetStore = create<PetStore>((set, get) => {
       if (reaction.bubble) showBubble(reaction.bubble);
     },
 
-    togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen, menuOpen: false })),
+    togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen, menuOpen: false, recordPanelOpen: false })),
     setMenuOpen: (open) => set({ menuOpen: open }),
     toggleDevPanel: () => set((s) => ({ devPanelOpen: !s.devPanelOpen })),
+    toggleRecordPanel: () => set((s) => ({ recordPanelOpen: !s.recordPanelOpen, menuOpen: false, panelOpen: false })),
 
     toggleAlwaysOnTop: async () => {
       const target = !get().alwaysOnTop;

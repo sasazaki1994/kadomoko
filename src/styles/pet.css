@@ -322,3 +322,57 @@
 .settings-section .compact-check {
   justify-content: flex-start;
 }
+
+.record-panel {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  max-width: 224px;
+  max-height: 224px;
+  overflow: hidden;
+  border: 1px solid rgba(85, 74, 70, 0.24);
+  border-radius: 12px;
+  background: rgba(255, 250, 242, 0.95);
+  color: #554a46;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+  font-size: 11px;
+  z-index: 5;
+}
+
+.record-body {
+  max-height: 184px;
+  overflow-y: auto;
+}
+
+.record-body section {
+  margin-bottom: 8px;
+}
+
+.record-section-title {
+  margin-bottom: 3px;
+  font-weight: 700;
+}
+
+.relationship-note p,
+.weekly-reflection,
+.empty-note,
+.record-counts {
+  margin: 3px 0 0;
+  line-height: 1.35;
+}
+
+.relationship-mini {
+  margin-top: 3px;
+  font-size: 10px;
+}
+
+.episode-list {
+  margin: 0;
+  padding-left: 1.1em;
+}
+
+.episode-list li {
+  margin-bottom: 3px;
+  line-height: 1.35;
+}
