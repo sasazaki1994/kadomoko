@@ -22,14 +22,9 @@ type StoreSchema = {
   settings: { alwaysOnTop: boolean; volume: number };
   windowPosition: { x: number; y: number } | null;
   lastLaunchedAt: number;
-  backup: {
-    version: number;
-    pet: unknown;
-    settings: { alwaysOnTop: boolean; volume: number };
-    windowPosition: { x: number; y: number } | null;
-    lastLaunchedAt: number;
-  } | null;
 };
+
+type SaveEnvelope = StoreSchema;
 
 const store = new Store<StoreSchema>({
   name: 'kadomoco-save',
@@ -39,7 +34,17 @@ const store = new Store<StoreSchema>({
     settings: { alwaysOnTop: false, volume: 50 },
     windowPosition: null,
     lastLaunchedAt: 0,
-    backup: null,
+  },
+});
+
+const backupStore = new Store<SaveEnvelope>({
+  name: 'kadomoco-save-backup',
+  defaults: {
+    version: 1,
+    pet: null,
+    settings: { alwaysOnTop: false, volume: 50 },
+    windowPosition: null,
+    lastLaunchedAt: 0,
   },
 });
 
@@ -93,7 +98,7 @@ function currentPrimarySave() {
 }
 
 function writeBackup() {
-  store.set('backup', currentPrimarySave());
+  backupStore.set(currentPrimarySave());
 }
 
 function createTrayIcon() {
@@ -231,14 +236,16 @@ function createTray() {
 function registerIpc() {
   ipcMain.handle('save:load', () => ({
     primary: currentPrimarySave(),
-    backup: store.get('backup'),
+    backup: backupStore.store,
   }));
 
   ipcMain.handle('save:write-pet', (_event, pet: unknown, version: number) => {
     writeBackup();
-    store.set('pet', pet);
-    store.set('version', version);
-    store.set('lastLaunchedAt', Date.now());
+    store.set({
+      pet,
+      version,
+      lastLaunchedAt: Date.now(),
+    });
   });
 
   ipcMain.handle('settings:get', () => store.get('settings'));

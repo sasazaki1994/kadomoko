@@ -28,15 +28,17 @@ export default function PetMenu() {
     <div className="menu-backdrop" onMouseDown={() => setMenuOpen(false)}>
       <div className="pet-menu" onMouseDown={(e) => e.stopPropagation()}>
         {actions.map(({ action, blockReason }) => {
-          const disabled = action === 'play' && blockReason !== undefined;
+          const blocked = action === 'play' && blockReason !== undefined;
           return (
             <button
               key={action}
-              className={blockReason === 'cooldown' ? 'cooldown' : undefined}
-              disabled={disabled}
+              className={[blockReason === 'cooldown' ? 'cooldown' : '', blocked ? 'blocked' : '']
+                .filter(Boolean)
+                .join(' ')}
+              aria-disabled={blocked}
               title={blockReason ? bubbleForBlockReason(blockReason) : undefined}
               onClick={() => {
-                if (disabled && blockReason) {
+                if (blocked && blockReason) {
                   const bubble = bubbleForBlockReason(blockReason);
                   if (bubble) showBubble(bubble, true);
                   return;
