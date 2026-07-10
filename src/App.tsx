@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import DevToolsPanel from './components/DevToolsPanel';
+import DiscoveryHint from './components/DiscoveryHint';
 import PetCharacter from './components/PetCharacter';
 import PetMenu from './components/PetMenu';
 import SpeechBubble from './components/SpeechBubble';
@@ -19,6 +20,7 @@ export default function App() {
   const menuOpen = usePetStore((s) => s.menuOpen);
   const devPanelOpen = usePetStore((s) => s.devPanelOpen);
   const recordPanelOpen = usePetStore((s) => s.recordPanelOpen);
+  const activeDiscovery = usePetStore((s) => s.pet.discovery.active);
   const init = usePetStore((s) => s.init);
   const tick = usePetStore((s) => s.tick);
   const catchUpOffline = usePetStore((s) => s.catchUpOffline);
@@ -57,6 +59,7 @@ export default function App() {
         setMenuOpen(!menuOpen);
       }}
     >
+      {!menuOpen && !panelOpen && !recordPanelOpen && !devPanelOpen && <DiscoveryHint discovery={activeDiscovery} />}
       <SpeechBubble />
       <PetCharacter />
       {menuOpen && <PetMenu />}

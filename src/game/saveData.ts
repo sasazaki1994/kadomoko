@@ -1,4 +1,5 @@
 import { sanitizeEpisodeEntries } from './episodes';
+import { createEmptyDiscoveryState, sanitizeDiscoveryState } from './discoveries';
 import { DEFAULT_REACTION_IDS } from './data/reactions';
 import { localDateString, rollDailyTasks } from './dailyTasks';
 import { EMPTY_CARE_STATS } from './personality';
@@ -22,7 +23,7 @@ import type {
   WeeklyReflection,
 } from './types';
 
-export const CURRENT_SAVE_VERSION = 4;
+export const CURRENT_SAVE_VERSION = 5;
 
 export const DEFAULT_SETTINGS: SaveSettings = {
   alwaysOnTop: false,
@@ -57,6 +58,7 @@ export function createInitialPetState(now: number): PetState {
     journalEntries: [],
     episodes: [],
     weeklyReflections: [],
+    discovery: createEmptyDiscoveryState(now),
   };
 }
 
@@ -185,7 +187,7 @@ function sanitizeCareStats(raw: unknown, fallback: PetState['careStats']): PetSt
   };
 }
 
-const CONTEXT_ACTION_IDS: readonly ContextActionId[] = ['give_space', 'wait_gently', 'look_together', 'stay_together', 'small_bite', 'tidy_habitat'];
+const CONTEXT_ACTION_IDS: readonly ContextActionId[] = ['give_space', 'wait_gently', 'look_together', 'stay_together', 'small_bite', 'tidy_habitat', 'inspect_edge'];
 
 function sanitizeLastContextActionAt(raw: unknown): PetState['lastContextActionAt'] {
   if (!isRecord(raw)) return {};
@@ -259,7 +261,8 @@ export function migrateSave(raw: unknown): unknown {
   if (raw.version === CURRENT_SAVE_VERSION) return raw;
   if (raw.version === 1) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, journalEntries: [], lastContextActionAt: {} } : raw.pet };
   if (raw.version === 2) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, lastContextActionAt: {}, episodes: [], weeklyReflections: [] } : raw.pet };
-  if (raw.version === 3) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, episodes: [], weeklyReflections: [] } : raw.pet };
+  if (raw.version === 3) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, episodes: [], weeklyReflections: [], discovery: createEmptyDiscoveryState(Date.now()) } : raw.pet };
+  if (raw.version === 4) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, discovery: createEmptyDiscoveryState(Date.now()) } : raw.pet };
   return null;
 }
 
@@ -300,6 +303,7 @@ function sanitizeCurrentVersionSave(raw: unknown, now: number): SaveData | null 
     journalEntries: sanitizeJournalEntries(rawPet.journalEntries),
     episodes: sanitizeEpisodeEntries(rawPet.episodes),
     weeklyReflections: sanitizeWeeklyReflections(rawPet.weeklyReflections),
+    discovery: sanitizeDiscoveryState(rawPet.discovery, now),
   };
   return {
     version: CURRENT_SAVE_VERSION,

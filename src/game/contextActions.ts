@@ -1,4 +1,5 @@
 import { grantExp } from './actions';
+import { resolveDiscovery } from './discoveries';
 import { CONTEXT_ACTIONS, CONTEXT_ACTION_BY_ID } from './data/contextActions';
 import { deriveBaseState } from './stateMachine';
 import { applyVitalDelta } from './vitals';
@@ -11,6 +12,7 @@ const BUBBLES: Record<ContextActionId, readonly string[]> = {
   stay_together: ['ここにいる', 'いい感じ'],
   small_bite: ['少しだけ', 'もぐ'],
   tidy_habitat: ['いい感じ', 'すっきり'],
+  inspect_edge: ['？', 'いい感じ', 'ここにある'],
 };
 
 function machineState(pet: PetState) {
@@ -51,6 +53,8 @@ function isConditionMet(pet: PetState, actionId: ContextActionId): boolean {
       return pet.vitals.hunger < 30 && pet.vitals.hunger < 90;
     case 'tidy_habitat':
       return hasPlacedHabitatItems(pet);
+    case 'inspect_edge':
+      return pet.currentAction !== 'sleeping' && Boolean(pet.discovery?.active);
     default: {
       const exhaustive: never = actionId;
       return exhaustive;
@@ -76,6 +80,7 @@ function deltaFor(actionId: ContextActionId): Partial<PetVitals> {
     case 'stay_together': return { mood: 3, affection: 2 };
     case 'small_bite': return { hunger: 12, mood: 2, affection: 1 };
     case 'tidy_habitat': return { mood: 4, affection: 1 };
+    case 'inspect_edge': return { mood: 4, affection: 1 };
     default: { const exhaustive: never = actionId; return exhaustive; }
   }
 }
@@ -91,6 +96,9 @@ export function performContextAction(pet: PetState, actionId: ContextActionId, n
     lastCareAt: now,
   };
   next.vitals = applyVitalDelta(next.vitals, deltaFor(actionId));
+  if (actionId === 'inspect_edge' && pet.discovery?.active) {
+    next = resolveDiscovery(next, pet.discovery.active.id, now).pet;
+  }
   const expGrant = grantExp(next, 2);
   next = expGrant.pet;
   const pool = BUBBLES[actionId];
@@ -101,6 +109,6 @@ export function performContextAction(pet: PetState, actionId: ContextActionId, n
     leveledUp: expGrant.leveledUp,
     newLevel: expGrant.leveledUp ? next.level : undefined,
     bubble: pool[Math.floor(Math.random() * pool.length)],
-    tempState: actionId === 'small_bite' ? 'reaction' : machineState(next),
+    tempState: actionId === 'small_bite' || actionId === 'inspect_edge' ? 'reaction' : machineState(next),
   };
 }

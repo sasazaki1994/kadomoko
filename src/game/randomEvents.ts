@@ -4,7 +4,7 @@ import {
   RANDOM_EVENT_POOL,
 } from './data/randomEvents';
 import { getLifeRhythmHints } from './lifeRhythm';
-import type { EpisodeEntry, CurrentAction, DayPeriod, Personality, PetVitals, RandomEventDef, RandomEventTag } from './types';
+import type { DiscoveryEntry, EpisodeEntry, CurrentAction, DayPeriod, Personality, PetVitals, RandomEventDef, RandomEventTag } from './types';
 
 export type RandomEventContext = {
   now: number;
@@ -16,6 +16,7 @@ export type RandomEventContext = {
   activeTogetherTimeMs: number;
   lastCareAt: number;
   episodes?: EpisodeEntry[];
+  activeDiscovery?: DiscoveryEntry | null;
 };
 
 function hasAny(event: RandomEventDef, tags: readonly RandomEventTag[]): boolean {
@@ -48,6 +49,11 @@ export function getRandomEventWeight(event: RandomEventDef, context: RandomEvent
   if (recentIds.has('watched_glow_speck') && (context.dayPeriod === 'night' || context.dayPeriod === 'lateNight')) boost(['night', 'curious'], 0.35);
   if (recentIds.has('played_again')) boost(['playing', 'hop'], 0.35);
   if (recentIds.has('rested_well')) boost(['calm', 'sleepy', 'sleeping'], 0.35);
+
+  if (context.activeDiscovery?.id === 'corner_light') boost(['curious', 'peek'], 0.3);
+  if (context.activeDiscovery?.id === 'sleepy_spark') boost(['sleepy', 'sleeping'], 0.3);
+  if (context.activeDiscovery?.id === 'paper_echo') boost(['curious'], 0.25);
+  if (context.activeDiscovery?.id === 'quiet_shadow') boost(['moody', 'calm'], 0.25);
 
   return Math.max(0, weight);
 }

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { episodeFromDiscovery, maybeRollDiscovery, resolveDiscovery, sanitizeDiscoveryState } from '../src/game/discoveries';
+import { DISCOVERY_BY_ID } from '../src/game/data/discoveries';
 import { appendEpisodeEntries, createEpisodeCandidates, sanitizeEpisodeEntries } from '../src/game/episodes';
 import { buildRelationshipNote } from '../src/game/relationship';
 import { appendWeeklyReflection, createWeeklyReflection } from '../src/game/weeklyReflection';
@@ -463,4 +465,76 @@ test('v4 migration fills and sanitizes episode and weekly reflection fields', ()
   assert.deepEqual(current.pet.vitals, { hunger: 22, mood: 33, sleepiness: 44, affection: 55 });
   assert.equal(current.pet.episodes.length, 1);
   assert.equal(current.pet.weeklyReflections.length, 0);
+});
+
+
+test('discovery rolling creates at most one active entry, expires quietly, and avoids same-day repeats', () => {
+  const base = pet({ vitals: { hunger: 70, mood: 80, sleepiness: 20, affection: 40 }, careStats: { ...EMPTY_CARE_STATS, activeTogetherTimeMs: 25 * 60_000 } });
+  const rolled = maybeRollDiscovery(base, NOW + 60 * 60_000, { force: true, rng: () => 0 });
+  assert.equal(rolled.created, true);
+  assert.ok(rolled.pet.discovery.active);
+  const second = maybeRollDiscovery(rolled.pet, NOW + 61 * 60_000, { force: true, rng: () => 0 });
+  assert.equal(second.created, false);
+  assert.equal(second.pet.discovery.active?.id, rolled.pet.discovery.active?.id);
+  const expired = maybeRollDiscovery({ ...rolled.pet, discovery: { ...rolled.pet.discovery, active: { ...rolled.pet.discovery.active!, expiresAt: NOW - 1 } } }, NOW, { rng: () => 0 });
+  assert.equal(expired.pet.discovery.active, null);
+  const resolved = resolveDiscovery(rolled.pet, rolled.pet.discovery.active!.id, NOW + 2 * 60 * 60_000).pet;
+  const next = maybeRollDiscovery(resolved, NOW + 3 * 60 * 60_000, { force: true, rng: () => 0 });
+  assert.notEqual(next.pet.discovery.active?.id, rolled.pet.discovery.active?.id);
+});
+
+test('discovery sanitize removes invalid ids, duplicates, and invalid active entries', () => {
+  const clean = sanitizeDiscoveryState({
+    active: { id: 'bad', expiresAt: NOW + 1 },
+    resolvedToday: ['corner_light', 'corner_light', 'bad'],
+    lastRolledAt: NOW,
+  }, NOW);
+  assert.equal(clean.active, null);
+  assert.deepEqual(clean.resolvedToday, ['corner_light']);
+});
+
+test('inspect_edge context action appears only for active awake discoveries and applies rewards', () => {
+  const rolled = maybeRollDiscovery(petWithoutDailyTasks({ vitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 30 } }), NOW + 60 * 60_000, { force: true, rng: () => 0 }).pet;
+  assert.equal(getAvailableContextAction(rolled, NOW + 61 * 60_000)?.id, 'inspect_edge');
+  assert.notEqual(getAvailableContextAction({ ...rolled, currentAction: 'sleeping' }, NOW + 61 * 60_000)?.id, 'inspect_edge');
+  const acted = performContextAction(rolled, 'inspect_edge', NOW + 62 * 60_000);
+  assert.equal(acted.ok, true);
+  assert.equal(acted.pet.discovery.active, null);
+  assert.equal(acted.pet.vitals.mood, 74);
+  assert.equal(acted.pet.vitals.affection, 31);
+  assert.equal(acted.pet.exp, 2);
+  assert.equal(getAvailableContextAction(acted.pet, NOW + 63 * 60_000)?.id, undefined);
+});
+
+test('discovery episodes are non-collecting, deduplicated, and capped by daily episode limit', () => {
+  const def = DISCOVERY_BY_ID.corner_light;
+  const entry = { id: def.id, date: '2026-07-09', kind: def.kind, label: def.label, shortText: def.shortText, relatedEpisodeId: def.episodeId, expiresAt: NOW + 1_000 };
+  const candidate = episodeFromDiscovery(entry, NOW);
+  assert.ok(candidate);
+  assert.equal(/図鑑|捕獲|レア|SSR|失敗|見逃しました|寂しかった/.test(candidate!.text), false);
+  const base = petWithoutDailyTasks({ discovery: { active: entry, resolvedToday: [], lastRolledAt: NOW } });
+  const once = resolveDiscovery(base, 'corner_light', NOW).pet;
+  const twice = appendEpisodeEntries(once.episodes, [candidate!]);
+  assert.equal(twice.length, once.episodes.length);
+  const filled = appendEpisodeEntries([candidate!, { ...candidate!, id: 'found_paper_echo', title: '紙片', text: '紙片のようなものを見つけたようだった。' }], [{ ...candidate!, id: 'watched_tiny_mark', title: '印', text: '小さな印のそばでしばらく止まっていた。' }]);
+  assert.equal(filled.length, 2);
+});
+
+test('v5 save migration fills and sanitizes discovery state while backup recovery still works', () => {
+  const old = sanitizeSave({ version: 4, pet: createInitialPetState(NOW), settings: { alwaysOnTop: false, volume: 50 }, lastLaunchedAt: NOW }, NOW);
+  assert.equal(old.version, CURRENT_SAVE_VERSION);
+  assert.deepEqual(old.pet.discovery.resolvedToday, []);
+  const current = sanitizeSave({ version: CURRENT_SAVE_VERSION, pet: { ...createInitialPetState(NOW), discovery: { active: { id: 'bad', expiresAt: NOW + 1 }, resolvedToday: ['lost_dot', 'bad'], lastRolledAt: NOW } }, settings: { alwaysOnTop: false, volume: 50 }, lastLaunchedAt: NOW }, NOW);
+  assert.equal(current.pet.discovery.active, null);
+  assert.deepEqual(current.pet.discovery.resolvedToday, ['lost_dot']);
+  const backup = sanitizeSave({ version: CURRENT_SAVE_VERSION, pet: { ...createInitialPetState(NOW), vitals: { hunger: 11, mood: 22, sleepiness: 33, affection: 44 } }, settings: { alwaysOnTop: false, volume: 50 }, lastLaunchedAt: NOW }, NOW);
+  assert.equal(recoverSave({ version: 999 }, backup, NOW).source, 'backup');
+});
+
+test('quiet ambient frequency lowers discovery roll chance', () => {
+  const base = pet({ vitals: { hunger: 70, mood: 80, sleepiness: 20, affection: 40 }, careStats: { ...EMPTY_CARE_STATS, activeTogetherTimeMs: 25 * 60_000 } });
+  const normal = maybeRollDiscovery(base, NOW + 60 * 60_000, { rng: () => 0.2, ambientFrequency: 'normal' });
+  const quiet = maybeRollDiscovery(base, NOW + 60 * 60_000, { rng: () => 0.2, ambientFrequency: 'quiet' });
+  assert.equal(normal.created, true);
+  assert.equal(quiet.created, false);
 });

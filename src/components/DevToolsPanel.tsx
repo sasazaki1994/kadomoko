@@ -26,6 +26,9 @@ export default function DevToolsPanel() {
   const devForceRandomEvent = usePetStore((s) => s.devForceRandomEvent);
   const devForceLevelUpEffect = usePetStore((s) => s.devForceLevelUpEffect);
   const devResetSave = usePetStore((s) => s.devResetSave);
+  const devForceDiscovery = usePetStore((s) => s.devForceDiscovery);
+  const devResolveDiscovery = usePetStore((s) => s.devResolveDiscovery);
+  const devExpireDiscovery = usePetStore((s) => s.devExpireDiscovery);
 
   return (
     <div className="dev-panel">
@@ -93,6 +96,11 @@ export default function DevToolsPanel() {
         <div className="dev-row dev-buttons">
           <button onClick={devForceRandomEvent}>イベント発生</button>
           <button onClick={devForceLevelUpEffect}>LvUP演出</button>
+        </div>
+        <div className="dev-row dev-buttons">
+          <button onClick={devForceDiscovery}>発見を強制発生</button>
+          <button onClick={devResolveDiscovery}>発見を解決</button>
+          <button onClick={devExpireDiscovery}>発見を期限切れ</button>
         </div>
         <div className="dev-row dev-buttons">
           <button className="danger" onClick={devResetSave}>

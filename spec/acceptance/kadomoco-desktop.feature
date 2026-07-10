@@ -167,3 +167,34 @@ Feature: KadoMoco desktop pet
     When the app loads the save
     Then episode and weekly reflection fields are added safely
     And existing pet data is preserved
+
+  Scenario: A quiet discovery appears near the pet
+    Given KadoMoco is calm and curious
+    When discovery rolling succeeds
+    Then a small unobtrusive discovery hint is shown
+    And the normal pet interactions remain available
+
+  Scenario: Inspecting a discovery creates a small moment
+    Given an active discovery exists
+    When the user selects "見にいく"
+    Then KadoMoco shows a short curious reaction
+    And the discovery is resolved
+    And a short non-collecting episode may be recorded
+
+  Scenario: Discoveries expire without penalty
+    Given an active discovery exists
+    When the discovery expires
+    Then it disappears quietly
+    And no negative message is shown
+
+  Scenario: Discovery state is safely migrated
+    Given an older save file exists
+    When the app loads the save
+    Then discovery state is initialized safely
+    And existing pet data is preserved
+
+  Scenario: Quiet settings reduce discovery interruption
+    Given ambient frequency is quiet
+    When discovery rolling is evaluated
+    Then discoveries are less likely to appear
+    And direct user actions still work

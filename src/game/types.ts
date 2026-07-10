@@ -35,7 +35,8 @@ export type ContextActionId =
   | 'look_together'
   | 'stay_together'
   | 'small_bite'
-  | 'tidy_habitat';
+  | 'tidy_habitat'
+  | 'inspect_edge';
 
 export type ContextActionDef = {
   id: ContextActionId;
@@ -117,7 +118,12 @@ export type EpisodeId =
   | 'recovered_from_hunger'
   | 'gentle_morning'
   | 'sleepy_night'
-  | 'calm_corner';
+  | 'calm_corner'
+  | 'noticed_corner_light'
+  | 'found_paper_echo'
+  | 'watched_tiny_mark'
+  | 'followed_soft_trace'
+  | 'looked_at_lost_dot';
 
 export type EpisodeTrigger =
   | 'day_rollover'
@@ -125,7 +131,8 @@ export type EpisodeTrigger =
   | 'context_action'
   | 'habitat_event'
   | 'level_up'
-  | 'resume';
+  | 'resume'
+  | 'discovery';
 
 export type EpisodeEntry = {
   id: EpisodeId;
@@ -196,6 +203,35 @@ export type PetState = {
   journalEntries: DailyJournalEntry[];
   episodes: EpisodeEntry[];
   weeklyReflections: WeeklyReflection[];
+  discovery: DiscoveryState;
+};
+
+export type DiscoveryId =
+  | 'drifting_seed'
+  | 'paper_echo'
+  | 'sleepy_spark'
+  | 'quiet_shadow'
+  | 'tiny_mark'
+  | 'corner_light'
+  | 'soft_trace'
+  | 'lost_dot';
+
+export type DiscoveryKind = 'light' | 'trace' | 'object' | 'shadow' | 'soundless';
+
+export type DiscoveryEntry = {
+  id: DiscoveryId;
+  date: string;
+  kind: DiscoveryKind;
+  label: string;
+  shortText: string;
+  relatedEpisodeId?: string;
+  expiresAt: number;
+};
+
+export type DiscoveryState = {
+  active: DiscoveryEntry | null;
+  resolvedToday: DiscoveryId[];
+  lastRolledAt: number;
 };
 
 export type SaveSettings = {

@@ -8,6 +8,7 @@ export default function RecordPanel() {
   const toggleRecordPanel = usePetStore((s) => s.toggleRecordPanel);
   const note = buildRelationshipNote(pet);
   const latestReflection = pet.weeklyReflections.at(-1);
+  const todaysDiscovery = pet.discovery.active?.shortText ?? 'なし';
 
   return (
     <div className="record-panel">
@@ -20,6 +21,10 @@ export default function RecordPanel() {
           <div className="record-section-title">関係</div>
           <strong>{note.label}</strong>
           <p>{note.description}</p>
+        </section>
+        <section>
+          <div className="record-section-title">今日の気配</div>
+          <p className="todays-discovery">・{todaysDiscovery}</p>
         </section>
         <section>
           <div className="record-section-title">最近のこと</div>

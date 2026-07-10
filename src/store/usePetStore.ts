@@ -9,6 +9,7 @@ import {
   SPEECH_MIN_INTERVAL_MS,
   SPEECH_PACK_EXTRA,
 } from '../game/data/speechMessages';
+import { maybeRollDiscovery, resolveDiscovery } from '../game/discoveries';
 import { getLifeRhythmHints } from '../game/lifeRhythm';
 import { maybeRollRandomEvent, pickRandomEvent } from '../game/randomEvents';
 import {
@@ -95,6 +96,9 @@ export type PetStore = {
   devForceRandomEvent: () => void;
   devForceLevelUpEffect: () => void;
   devResetSave: () => void;
+  devForceDiscovery: () => void;
+  devResolveDiscovery: () => void;
+  devExpireDiscovery: () => void;
 };
 
 let tempStateTimer: ReturnType<typeof setTimeout> | null = null;
@@ -203,7 +207,11 @@ export const usePetStore = create<PetStore>((set, get) => {
         activeTogetherTimeMs: next.careStats.activeTogetherTimeMs,
         lastCareAt: next.lastCareAt,
         episodes: next.episodes,
+        activeDiscovery: next.discovery.active,
       }, Math.random, AMBIENT_MULTIPLIER[settings.ambientFrequency]);
+      const discoveryRoll = maybeRollDiscovery(next, now, { ambientFrequency: settings.ambientFrequency });
+      next = discoveryRoll.pet;
+
       if (event) {
         next = { ...next, lastRandomEventAt: now };
         playRandomEvent(event);
@@ -386,6 +394,24 @@ export const usePetStore = create<PetStore>((set, get) => {
     devResetSave: () => {
       const fresh = createInitialPetState(Date.now());
       applyPetUpdate(fresh);
+    },
+
+    devForceDiscovery: () => {
+      const result = maybeRollDiscovery(get().pet, Date.now(), { force: true, rng: () => 0 });
+      applyPetUpdate(result.pet);
+    },
+
+    devResolveDiscovery: () => {
+      const active = get().pet.discovery.active;
+      if (!active) return;
+      const result = resolveDiscovery(get().pet, active.id, Date.now());
+      applyPetUpdate(result.pet);
+      get().showBubble('いい感じ', true);
+    },
+
+    devExpireDiscovery: () => {
+      const pet = get().pet;
+      applyPetUpdate({ ...pet, discovery: { ...pet.discovery, active: null, lastRolledAt: Date.now() } });
     },
   };
 });

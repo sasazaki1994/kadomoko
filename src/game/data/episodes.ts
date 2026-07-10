@@ -11,6 +11,11 @@ export const EPISODE_TEXT: Record<EpisodeId, { title: string; text: string }> = 
   gentle_morning: { title: '朝', text: '穏やかな朝を過ごした。' },
   sleepy_night: { title: '夜', text: '少し眠そうだけれど、落ち着いていた。' },
   calm_corner: { title: 'すみか', text: '小さなすみかで静かにしていた。' },
+  noticed_corner_light: { title: '小さな光', text: '画面端の小さな光を見ていた。' },
+  found_paper_echo: { title: '紙片', text: '紙片のようなものを見つけたようだった。' },
+  watched_tiny_mark: { title: '小さな印', text: '小さな印のそばでしばらく止まっていた。' },
+  followed_soft_trace: { title: 'やわらかい跡', text: 'やわらかい跡を見つめていた。' },
+  looked_at_lost_dot: { title: '小さな点', text: '迷い込んだ小さな点を見ていた。' },
 };
 
 export const EPISODE_IDS = Object.keys(EPISODE_TEXT) as EpisodeId[];

@@ -6,6 +6,7 @@ export const CONTEXT_ACTIONS: readonly ContextActionDef[] = [
   { id: 'small_bite', label: '少しだけあげる', description: '少しだけ食べものをあげる', priority: 80, cooldownMs: 3 * 60_000 },
   { id: 'look_together', label: 'いっしょに見る', description: '気になるものを一緒に見る', priority: 60, cooldownMs: 5 * 60_000 },
   { id: 'stay_together', label: 'いっしょにいる', description: 'ただ近くで一緒にいる', priority: 40, cooldownMs: 4 * 60_000 },
+  { id: 'inspect_edge', label: '見にいく', description: '画面端の小さな気配を見にいく', priority: 110, cooldownMs: 10 * 60_000 },
   { id: 'tidy_habitat', label: 'すみかを整える', description: 'すみかを少し整える', priority: 30, cooldownMs: 6 * 60 * 60_000 },
 ] as const;
 
