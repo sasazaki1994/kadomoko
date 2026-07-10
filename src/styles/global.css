@@ -104,6 +104,20 @@ body {
   background: #f2e0c8;
 }
 
+.pet-menu button.cooldown {
+  color: #8f7d70;
+}
+
+.pet-menu button:disabled {
+  color: #a99a90;
+  cursor: default;
+  opacity: 0.65;
+}
+
+.pet-menu button:disabled:hover {
+  background: transparent;
+}
+
 .pet-menu button.danger:hover {
   background: #f5c9b8;
 }

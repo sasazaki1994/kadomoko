@@ -5,7 +5,7 @@ import { BALANCE } from '../src/game/data/balance';
 import { rollDailyTasks } from '../src/game/dailyTasks';
 import { gainExp, LEVEL_REQUIREMENTS } from '../src/game/level';
 import { computeTendency, EMPTY_CARE_STATS, resolvePersonality } from '../src/game/personality';
-import { CURRENT_SAVE_VERSION, createInitialPetState, sanitizeSave } from '../src/game/saveData';
+import { CURRENT_SAVE_VERSION, createInitialPetState, recoverSave, sanitizeSave } from '../src/game/saveData';
 import { deriveBaseState } from '../src/game/stateMachine';
 import { progressTime } from '../src/game/timeProgress';
 import type { CareStats, PetState } from '../src/game/types';
@@ -68,15 +68,19 @@ test('care actions update vitals, exp, cooldowns, and blocked play conditions', 
   const tooSleepy = performCareAction(petWithoutDailyTasks({ vitals: { ...base.vitals, sleepiness: 85 } }), 'play', NOW + 20_000);
   assert.equal(tooSleepy.ok, false);
   assert.equal(tooSleepy.blockReason, 'tooSleepy');
+  assert.equal(tooSleepy.bubble, 'ちょっと眠い');
 
   const tooHungry = performCareAction(petWithoutDailyTasks({ vitals: { ...base.vitals, hunger: 9 } }), 'play', NOW + 20_000);
   assert.equal(tooHungry.ok, false);
   assert.equal(tooHungry.blockReason, 'tooHungry');
+  assert.equal(tooHungry.bubble, 'おなかすいた');
 
   const firstTouch = performCareAction(base, 'touch', NOW + 20_000);
   const cooldown = performCareAction(firstTouch.pet, 'touch', NOW + 29_999);
   assert.equal(cooldown.ok, false);
   assert.equal(cooldown.blockReason, 'cooldown');
+  assert.equal(cooldown.bubble, 'ちょっと待って');
+  assert.deepEqual(cooldown.pet.vitals, firstTouch.pet.vitals);
 });
 
 test('resting chooses resting or sleeping depending on sleepiness', () => {
@@ -149,4 +153,26 @@ test('corrupted save payloads are sanitized without throwing', () => {
   assert.equal(save.settings.alwaysOnTop, true);
   assert.equal(save.settings.volume, 100);
   assert.equal(save.lastLaunchedAt, NOW);
+});
+
+test('recoverSave prefers a valid backup over a corrupted primary', () => {
+  const backup = sanitizeSave(
+    {
+      version: CURRENT_SAVE_VERSION,
+      pet: { ...createInitialPetState(NOW), vitals: { hunger: 33, mood: 44, sleepiness: 55, affection: 66 } },
+      settings: { alwaysOnTop: true, volume: 25 },
+      lastLaunchedAt: NOW - 1_000,
+    },
+    NOW,
+  );
+  const recovered = recoverSave({ version: 999, pet: null }, backup, NOW);
+  assert.equal(recovered.source, 'backup');
+  assert.deepEqual(recovered.save.pet.vitals, { hunger: 33, mood: 44, sleepiness: 55, affection: 66 });
+  assert.equal(recovered.save.settings.alwaysOnTop, true);
+});
+
+test('recoverSave creates initial data only when primary and backup cannot be used', () => {
+  const recovered = recoverSave({ version: 999, pet: null }, { version: 999, pet: null }, NOW);
+  assert.equal(recovered.source, 'initial');
+  assert.deepEqual(recovered.save.pet.vitals, createInitialPetState(NOW).vitals);
 });

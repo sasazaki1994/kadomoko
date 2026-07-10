@@ -22,6 +22,13 @@ type StoreSchema = {
   settings: { alwaysOnTop: boolean; volume: number };
   windowPosition: { x: number; y: number } | null;
   lastLaunchedAt: number;
+  backup: {
+    version: number;
+    pet: unknown;
+    settings: { alwaysOnTop: boolean; volume: number };
+    windowPosition: { x: number; y: number } | null;
+    lastLaunchedAt: number;
+  } | null;
 };
 
 const store = new Store<StoreSchema>({
@@ -32,6 +39,7 @@ const store = new Store<StoreSchema>({
     settings: { alwaysOnTop: false, volume: 50 },
     windowPosition: null,
     lastLaunchedAt: 0,
+    backup: null,
   },
 });
 
@@ -70,7 +78,22 @@ function resolveInitialPosition(width: number, height: number): { x: number; y: 
 function persistWindowPosition() {
   if (!win) return;
   const [x, y] = win.getPosition();
+  writeBackup();
   store.set('windowPosition', { x, y });
+}
+
+function currentPrimarySave() {
+  return {
+    version: store.get('version'),
+    pet: store.get('pet'),
+    settings: store.get('settings'),
+    windowPosition: store.get('windowPosition'),
+    lastLaunchedAt: store.get('lastLaunchedAt'),
+  };
+}
+
+function writeBackup() {
+  store.set('backup', currentPrimarySave());
 }
 
 function createTrayIcon() {
@@ -141,6 +164,7 @@ function updateTrayMenu() {
 
 function setAlwaysOnTop(value: boolean) {
   const settings = store.get('settings');
+  writeBackup();
   store.set('settings', { ...settings, alwaysOnTop: value });
   win?.setAlwaysOnTop(value);
   updateTrayMenu();
@@ -206,13 +230,12 @@ function createTray() {
 
 function registerIpc() {
   ipcMain.handle('save:load', () => ({
-    version: store.get('version'),
-    pet: store.get('pet'),
-    settings: store.get('settings'),
-    lastLaunchedAt: store.get('lastLaunchedAt'),
+    primary: currentPrimarySave(),
+    backup: store.get('backup'),
   }));
 
   ipcMain.handle('save:write-pet', (_event, pet: unknown, version: number) => {
+    writeBackup();
     store.set('pet', pet);
     store.set('version', version);
     store.set('lastLaunchedAt', Date.now());

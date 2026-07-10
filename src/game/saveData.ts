@@ -54,6 +54,12 @@ export function createInitialSave(now: number): SaveData {
   };
 }
 
+export type RawSaveEnvelope = Partial<SaveData> & {
+  windowPosition?: unknown;
+};
+
+export type SaveRecoverySource = 'primary' | 'backup' | 'initial';
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -172,15 +178,23 @@ function sanitizePersonalityHistory(raw: unknown): PersonalityHistoryEntry[] {
 }
 
 /**
- * Validates loaded data. Unknown versions or malformed data fall back to a
- * fresh save so the app never crashes on corrupted storage.
+ * Placeholder for future save migrations. v0.1 only has version 1, so unknown
+ * versions are rejected here and callers may try a backup before creating a
+ * fresh save.
  */
-export function sanitizeSave(raw: unknown, now: number): SaveData {
-  if (!isRecord(raw)) return createInitialSave(now);
-  if (raw.version !== CURRENT_SAVE_VERSION || !isRecord(raw.pet)) return createInitialSave(now);
+export function migrateSave(raw: unknown): unknown {
+  if (!isRecord(raw)) return null;
+  if (raw.version === CURRENT_SAVE_VERSION) return raw;
+  return null;
+}
+
+function sanitizeCurrentVersionSave(raw: unknown, now: number): SaveData | null {
+  if (!isRecord(raw)) return null;
+  const migrated = migrateSave(raw);
+  if (!isRecord(migrated) || !isRecord(migrated.pet)) return null;
 
   const fresh = createInitialPetState(now);
-  const rawPet = raw.pet;
+  const rawPet = migrated.pet;
   const pet: PetState = {
     ...fresh,
     vitals: sanitizeVitals(rawPet.vitals, fresh.vitals),
@@ -211,7 +225,34 @@ export function sanitizeSave(raw: unknown, now: number): SaveData {
   return {
     version: CURRENT_SAVE_VERSION,
     pet,
-    settings: sanitizeSettings(raw.settings),
-    lastLaunchedAt: finiteNumber(raw.lastLaunchedAt, now),
+    settings: sanitizeSettings(migrated.settings),
+    lastLaunchedAt: finiteNumber(migrated.lastLaunchedAt, now),
   };
+}
+
+/**
+ * Validates loaded data. Unknown versions or malformed data fall back to a
+ * fresh save so direct callers and tests never crash on corrupted storage.
+ */
+export function sanitizeSave(raw: unknown, now: number): SaveData {
+  return sanitizeCurrentVersionSave(raw, now) ?? createInitialSave(now);
+}
+
+/**
+ * Loads the primary save when possible, then a backup, and only then creates
+ * initial data. This keeps unknown or malformed primary data from discarding a
+ * recoverable backup.
+ */
+export function recoverSave(
+  primary: unknown,
+  backup: unknown,
+  now: number,
+): { save: SaveData; source: SaveRecoverySource } {
+  const primarySave = sanitizeCurrentVersionSave(primary, now);
+  if (primarySave) return { save: primarySave, source: 'primary' };
+
+  const backupSave = sanitizeCurrentVersionSave(backup, now);
+  if (backupSave) return { save: backupSave, source: 'backup' };
+
+  return { save: createInitialSave(now), source: 'initial' };
 }

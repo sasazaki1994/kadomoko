@@ -12,7 +12,7 @@ import { maybeRollRandomEvent, pickRandomEvent } from '../game/randomEvents';
 import {
   createInitialPetState,
   CURRENT_SAVE_VERSION,
-  sanitizeSave,
+  recoverSave,
 } from '../game/saveData';
 import {
   deriveBaseState,
@@ -139,10 +139,11 @@ export const usePetStore = create<PetStore>((set, get) => {
     init: async () => {
       const now = Date.now();
       const raw = await window.kadomoco?.loadSave();
-      const save = sanitizeSave(
-        raw && (raw as { pet?: unknown }).pet ? raw : null,
+      const save = recoverSave(
+        raw && typeof raw === 'object' && 'primary' in raw ? (raw as { primary?: unknown }).primary : raw,
+        raw && typeof raw === 'object' && 'backup' in raw ? (raw as { backup?: unknown }).backup : null,
         now,
-      );
+      ).save;
       const progressed = progressTime(save.pet, now, { online: false });
       set({
         loaded: true,
