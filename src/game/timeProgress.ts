@@ -1,4 +1,5 @@
 import { applyCompletedTasks } from './actions';
+import { createDailyJournalEntry } from './dailySummary';
 import { BALANCE, THRESHOLDS } from './data/balance';
 import { PERSONALITY_RULES } from './data/personalityRules';
 import { completeTimeTasks, localDateString, rollDailyTasks } from './dailyTasks';
@@ -133,6 +134,7 @@ export function progressTime(
       personalityHistory: history,
       careStats: { ...EMPTY_CARE_STATS },
       dailyTasks: rollDailyTasks(today, rng),
+      journalEntries: [...next.journalEntries, createDailyJournalEntry(next)].slice(-30),
     };
   }
 

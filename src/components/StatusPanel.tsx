@@ -1,6 +1,7 @@
 import { expForNextLevel } from '../game/level';
 import type { Personality } from '../game/types';
 import { usePetStore } from '../store/usePetStore';
+import DailySummary from './DailySummary';
 import DailyTaskList from './DailyTaskList';
 
 const PERSONALITY_LABELS: Record<Personality, string> = {
@@ -54,6 +55,7 @@ export default function StatusPanel() {
         <div className="personality-row">
           性格：{PERSONALITY_LABELS[pet.personality]}
         </div>
+        <DailySummary />
         <DailyTaskList />
       </div>
     </div>

@@ -79,3 +79,32 @@ Feature: KadoMoco desktop pet
     When the developer runs "npm run package:win"
     Then a Windows desktop application package is written under "release/"
     And the pet sprite sheet is included in the production build
+
+  Scenario: Life rhythm changes quiet behavior by time of day
+    Given the app is running
+    When the local time is late night
+    Then sleepy or resting events become more likely
+    And no disruptive notification is shown
+
+  Scenario: Resume from sleep shows a gentle reaction
+    Given the PC was sleeping
+    When the PC resumes
+    Then KadoMoco catches up offline progress
+    And a short non-blaming bubble may be shown
+
+  Scenario: Personality affects random event tendencies
+    Given KadoMoco has an energetic personality
+    When a random event is rolled
+    Then playful or hopping events are weighted higher than calm events
+
+  Scenario: Status panel shows today's observation summary
+    Given the status panel is open
+    When the pet has current vitals and care stats
+    Then a short daily summary is shown
+    And the summary does not contain blaming language
+
+  Scenario: Journal entry is created on day rollover
+    Given the app crosses into a new local date
+    When daily tasks are rerolled
+    Then a compact journal entry for the previous day is stored
+    And at most 30 journal entries are retained

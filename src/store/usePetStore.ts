@@ -8,6 +8,7 @@ import {
   SPEECH_MIN_INTERVAL_MS,
   SPEECH_PACK_EXTRA,
 } from '../game/data/speechMessages';
+import { getLifeRhythmHints } from '../game/lifeRhythm';
 import { maybeRollRandomEvent, pickRandomEvent } from '../game/randomEvents';
 import {
   createInitialPetState,
@@ -32,6 +33,8 @@ import type {
 } from '../game/types';
 
 const AMBIENT_SPEECH_CHANCE_PER_MINUTE = 0.08;
+const RESUME_REACTION_MIN_GAP_MS = 60_000;
+const RESUME_BUBBLES = ['おかえり', '……', 'ここにいる', 'ひとやすみしてた'] as const;
 
 export type CharacterEffect =
   | 'wiggle'
@@ -62,7 +65,7 @@ export type PetStore = {
 
   init: () => Promise<void>;
   tick: () => void;
-  catchUpOffline: () => void;
+  catchUpOffline: (fromResume?: boolean) => void;
   performAction: (action: CareActionId) => void;
   clickReaction: () => void;
   togglePanel: () => void;
@@ -88,6 +91,7 @@ let tempStateTimer: ReturnType<typeof setTimeout> | null = null;
 let bubbleTimer: ReturnType<typeof setTimeout> | null = null;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let bubbleSeq = 0;
+let lastResumeReactionAt = 0;
 
 function scheduleSave(pet: PetState) {
   if (saveTimer) clearTimeout(saveTimer);
@@ -168,7 +172,24 @@ export const usePetStore = create<PetStore>((set, get) => {
       const result = progressTime(pet, now, { online: true });
       let next = result.pet;
 
-      const event = maybeRollRandomEvent(now, next.lastRandomEventAt);
+      const hints = getLifeRhythmHints({
+        now,
+        vitals: next.vitals,
+        personality: next.personality,
+        currentAction: next.currentAction,
+        activeTogetherTimeMs: next.careStats.activeTogetherTimeMs,
+        lastCareAt: next.lastCareAt,
+      });
+      const event = maybeRollRandomEvent(now, next.lastRandomEventAt, {
+        now,
+        vitals: next.vitals,
+        personality: next.personality,
+        affection: next.vitals.affection,
+        currentAction: next.currentAction,
+        dayPeriod: hints.dayPeriod,
+        activeTogetherTimeMs: next.careStats.activeTogetherTimeMs,
+        lastCareAt: next.lastCareAt,
+      });
       if (event) {
         next = { ...next, lastRandomEventAt: now };
         playRandomEvent(event);
@@ -181,18 +202,23 @@ export const usePetStore = create<PetStore>((set, get) => {
         const state = deriveBaseState(next.vitals, next.currentAction);
         const base = SPEECH_BY_STATE[state] ?? [];
         const extra = next.unlockedSpeechPackIds.includes('extra') ? SPEECH_PACK_EXTRA : [];
-        const pool = [...base, ...extra];
+        const pool = [...base, ...extra, ...hints.speechCandidates];
         if (pool.length > 0) {
           showBubble(pool[Math.floor(Math.random() * pool.length)]);
         }
       }
     },
 
-    catchUpOffline: () => {
+    catchUpOffline: (fromResume = false) => {
       const now = Date.now();
       const result = progressTime(get().pet, now, { online: false });
       applyPetUpdate(result.pet, { leveledUp: result.leveledUp, newLevel: result.newLevel });
       if (!result.leveledUp) showDailyTaskBubble(result.completedTaskIds);
+      if (fromResume && now - lastResumeReactionAt >= RESUME_REACTION_MIN_GAP_MS) {
+        lastResumeReactionAt = now;
+        showTempState('curious', 'gaze', 3_000);
+        get().showBubble(RESUME_BUBBLES[Math.floor(Math.random() * RESUME_BUBBLES.length)], true);
+      }
     },
 
     performAction: (action) => {

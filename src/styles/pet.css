@@ -269,3 +269,26 @@
   background: #ac7a6e;
   border-radius: 0 0 4px 4px;
 }
+
+.daily-summary {
+  margin: 8px 0;
+  padding: 6px 8px;
+  border: 1px solid rgba(85, 74, 70, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 250, 242, 0.76);
+  font-size: 11px;
+}
+
+.daily-summary-title {
+  margin-bottom: 3px;
+  font-weight: 700;
+}
+
+.daily-summary ul {
+  margin: 0;
+  padding-left: 1.1em;
+}
+
+.daily-summary li {
+  line-height: 1.35;
+}

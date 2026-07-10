@@ -33,7 +33,7 @@ export default function App() {
   }, [tick]);
 
   useEffect(() => {
-    const unsubscribe = window.kadomoco?.onPowerResume(catchUpOffline);
+    const unsubscribe = window.kadomoco?.onPowerResume(() => catchUpOffline(true));
     return unsubscribe;
   }, [catchUpOffline]);
 
