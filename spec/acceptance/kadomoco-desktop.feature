@@ -108,3 +108,32 @@ Feature: KadoMoco desktop pet
     When daily tasks are rerolled
     Then a compact journal entry for the previous day is stored
     And at most 30 journal entries are retained
+
+  Scenario: Habitat items are shown quietly near the pet
+    Given KadoMoco has unlocked habitat items
+    When the app is running normally
+    Then up to two small habitat items are shown near the pet
+    And they do not cover the care menu or status panel
+
+  Scenario: Habitat items unlock through progression
+    Given the pet reaches a new level or affection threshold
+    When habitat unlocks are evaluated
+    Then newly available habitat items are added without removing existing save data
+
+  Scenario: Habitat items influence random events
+    Given a soft cloth is placed in the habitat
+    And the pet is sleepy
+    When a random event is rolled
+    Then a resting or curling event is weighted higher
+
+  Scenario: Memory flags are created on day rollover
+    Given the pet played often yesterday
+    When the app crosses into a new local date
+    Then a played_yesterday memory flag is stored
+    And expired memory flags are removed
+
+  Scenario: Memory affects future behavior without blaming the user
+    Given the pet has memory flags from previous days
+    When spontaneous events or bubbles are selected
+    Then matching event tendencies are weighted slightly higher
+    And no blaming message is shown

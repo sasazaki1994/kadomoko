@@ -3,8 +3,9 @@ import {
   RANDOM_EVENT_MIN_GAP_MS,
   RANDOM_EVENT_POOL,
 } from './data/randomEvents';
+import { getHabitatEventCandidates, getMemoryEventWeightBoost } from './habitatEvents';
 import { getLifeRhythmHints } from './lifeRhythm';
-import type { CurrentAction, DayPeriod, Personality, PetVitals, RandomEventDef, RandomEventTag } from './types';
+import type { CurrentAction, DayPeriod, HabitatItemId, MemoryFlag, Personality, PetVitals, RandomEventDef, RandomEventTag } from './types';
 
 export type RandomEventContext = {
   now: number;
@@ -15,6 +16,9 @@ export type RandomEventContext = {
   dayPeriod: DayPeriod;
   activeTogetherTimeMs: number;
   lastCareAt: number;
+  placedItemIds?: HabitatItemId[];
+  memoryFlags?: MemoryFlag[];
+  level?: number;
 };
 
 function hasAny(event: RandomEventDef, tags: readonly RandomEventTag[]): boolean {
@@ -42,6 +46,7 @@ export function getRandomEventWeight(event: RandomEventDef, context: RandomEvent
   if (context.dayPeriod === 'morning') boost(['stretch', 'curious', 'morning'], 0.8);
   if (context.dayPeriod === 'night' || context.dayPeriod === 'lateNight') boost(['sleepy', 'sleeping', 'night'], 0.9);
 
+  weight += getMemoryEventWeightBoost(event, context.memoryFlags);
   return Math.max(0, weight);
 }
 
@@ -50,7 +55,8 @@ export function pickWeightedRandomEvent(
   rng: () => number = Math.random,
   pool: readonly RandomEventDef[] = RANDOM_EVENT_POOL,
 ): RandomEventDef | null {
-  const weighted = pool.map((event) => ({ event, weight: getRandomEventWeight(event, context) })).filter((x) => x.weight > 0);
+  const fullPool = [...pool, ...getHabitatEventCandidates({ vitals: context.vitals, personality: context.personality, dayPeriod: context.dayPeriod, placedItemIds: context.placedItemIds ?? [], memoryFlags: context.memoryFlags ?? [], affection: context.affection, level: context.level })];
+  const weighted = fullPool.map((event) => ({ event, weight: getRandomEventWeight(event, context) })).filter((x) => x.weight > 0);
   const total = weighted.reduce((sum, x) => sum + x.weight, 0);
   if (total <= 0 || weighted.length === 0) return null;
   let cursor = rng() * total;

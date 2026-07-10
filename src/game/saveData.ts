@@ -1,4 +1,6 @@
 import { DEFAULT_REACTION_IDS } from './data/reactions';
+import { createInitialHabitatState, sanitizeHabitatState } from './habitat';
+import { createInitialMemoryState, sanitizeMemoryFlags } from './memory';
 import { localDateString, rollDailyTasks } from './dailyTasks';
 import { EMPTY_CARE_STATS } from './personality';
 import { INITIAL_VITALS } from './vitals';
@@ -16,7 +18,7 @@ import type {
   SaveSettings,
 } from './types';
 
-export const CURRENT_SAVE_VERSION = 2;
+export const CURRENT_SAVE_VERSION = 3;
 
 export const DEFAULT_SETTINGS: SaveSettings = {
   alwaysOnTop: false,
@@ -37,6 +39,8 @@ export function createInitialPetState(now: number): PetState {
     unlockedSpeechPackIds: [],
     unlockedPropIds: [],
     dailyTasks: rollDailyTasks(localDateString(now)),
+    habitat: createInitialHabitatState(),
+    memory: createInitialMemoryState(),
     lastUpdatedAt: now,
     lastCareAt: now,
     lastActionAt: {},
@@ -203,7 +207,7 @@ function sanitizeJournalEntries(raw: unknown): DailyJournalEntry[] {
 export function migrateSave(raw: unknown): unknown {
   if (!isRecord(raw)) return null;
   if (raw.version === CURRENT_SAVE_VERSION) return raw;
-  if (raw.version === 1) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, journalEntries: [] } : raw.pet };
+  if (raw.version === 1 || raw.version === 2) return { ...raw, version: CURRENT_SAVE_VERSION, pet: isRecord(raw.pet) ? { ...raw.pet, journalEntries: Array.isArray(raw.pet.journalEntries) ? raw.pet.journalEntries : [], habitat: raw.pet.habitat, memory: raw.pet.memory } : raw.pet };
   return null;
 }
 
@@ -234,6 +238,8 @@ function sanitizeCurrentVersionSave(raw: unknown, now: number): SaveData | null 
     ),
     unlockedPropIds: sanitizeStringArray(rawPet.unlockedPropIds, fresh.unlockedPropIds),
     dailyTasks: sanitizeDailyTasks(rawPet.dailyTasks, fresh.dailyTasks),
+    habitat: sanitizeHabitatState(rawPet.habitat, fresh.habitat),
+    memory: { flags: sanitizeMemoryFlags(isRecord(rawPet.memory) ? rawPet.memory.flags : undefined, localDateString(now)) },
     lastUpdatedAt: finiteNumber(rawPet.lastUpdatedAt, fresh.lastUpdatedAt),
     lastCareAt: finiteNumber(rawPet.lastCareAt, fresh.lastCareAt),
     lastActionAt: sanitizeLastActionAt(rawPet.lastActionAt),

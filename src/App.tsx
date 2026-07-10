@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import DevToolsPanel from './components/DevToolsPanel';
+import HabitatLayer from './components/HabitatLayer';
 import PetCharacter from './components/PetCharacter';
 import PetMenu from './components/PetMenu';
 import SpeechBubble from './components/SpeechBubble';
@@ -56,6 +57,7 @@ export default function App() {
       }}
     >
       <SpeechBubble />
+      <HabitatLayer />
       <PetCharacter />
       {menuOpen && <PetMenu />}
       {panelOpen && <StatusPanel />}

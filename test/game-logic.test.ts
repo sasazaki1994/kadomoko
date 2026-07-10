@@ -4,6 +4,9 @@ import { performCareAction } from '../src/game/actions';
 import { buildDailySummary } from '../src/game/dailySummary';
 import { BALANCE } from '../src/game/data/balance';
 import { getDayPeriod, getLifeRhythmHints } from '../src/game/lifeRhythm';
+import { getHabitatEventCandidates, getMemoryEventWeightBoost } from '../src/game/habitatEvents';
+import { chooseDefaultPlacedItems, sanitizeHabitatState, unlockHabitatItems } from '../src/game/habitat';
+import { deriveMemoryFlagsFromDay, makeMemoryFlag, mergeMemoryFlags, sanitizeMemoryFlags } from '../src/game/memory';
 import { getRandomEventWeight, pickWeightedRandomEvent, type RandomEventContext } from '../src/game/randomEvents';
 import { dailyTaskCompletionBubble, getDailyTaskProgress, rollDailyTasks } from '../src/game/dailyTasks';
 import { gainExp, LEVEL_REQUIREMENTS } from '../src/game/level';
@@ -324,4 +327,54 @@ test('v1 saves migrate to v2 and invalid journal entries are dropped', () => {
   }, NOW);
   assert.equal(current.pet.journalEntries.length, 1);
   assert.equal(current.pet.journalEntries[0].personality, 'calm');
+});
+
+
+test('habitat unlocks, placement limits, and sanitization are stable', () => {
+  const initial = createInitialPetState(NOW);
+  assert.ok(initial.habitat.unlockedItemIds.includes('soft_cloth'));
+  assert.ok(unlockHabitatItems(pet({ level: 3 })).habitat.unlockedItemIds.includes('small_stone'));
+  assert.ok(unlockHabitatItems(pet({ level: 4 })).habitat.unlockedItemIds.includes('old_note'));
+  assert.ok(unlockHabitatItems(pet({ vitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 50 } })).habitat.unlockedItemIds.includes('round_trinket'));
+  assert.ok(unlockHabitatItems(pet({ personality: 'moody' })).habitat.unlockedItemIds.includes('quiet_box'));
+  const clean = sanitizeHabitatState({ unlockedItemIds: ['soft_cloth', 'soft_cloth', 'bad', 'small_stone', 'old_note'], placedItemIds: ['bad', 'small_stone', 'small_stone', 'old_note'] });
+  assert.deepEqual(clean.unlockedItemIds, ['soft_cloth', 'small_stone', 'old_note']);
+  assert.deepEqual(clean.placedItemIds, ['small_stone', 'old_note']);
+  assert.equal(chooseDefaultPlacedItems(unlockHabitatItems(pet({ level: 5 }))).length <= 2, true);
+});
+
+test('memory flags derive, expire, clamp, and merge without duplicates', () => {
+  const flags = deriveMemoryFlagsFromDay(pet({ careStats: { ...EMPTY_CARE_STATS, playCount: 4, restCount: 2, activeTogetherTimeMs: 91 * 60_000 } }), '2026-07-08');
+  assert.ok(flags.some((f) => f.id === 'played_yesterday'));
+  assert.ok(flags.some((f) => f.id === 'rested_often'));
+  assert.ok(flags.some((f) => f.id === 'long_time_together'));
+  const merged = mergeMemoryFlags([
+    { id: 'played_yesterday', createdDate: '2026-07-01', expiresDate: '2026-07-02', strength: 9 },
+    makeMemoryFlag('touched_often', '2026-07-08', 1),
+  ], [makeMemoryFlag('touched_often', '2026-07-08', 3)], '2026-07-09');
+  assert.equal(merged.some((f) => f.id === 'played_yesterday'), false);
+  assert.equal(merged.filter((f) => f.id === 'touched_often').length, 1);
+  assert.equal(merged.find((f) => f.id === 'touched_often')?.strength, 3);
+  assert.deepEqual(sanitizeMemoryFlags([{ id: 'bad', strength: 9 }, { id: 'fed_often', strength: 9 }], '2026-07-09').map((f) => f.strength), [3]);
+});
+
+test('habitat and memory events influence candidates and weights safely', () => {
+  const ctx = { vitals: { hunger: 70, mood: 80, sleepiness: 85, affection: 60 }, personality: 'normal' as const, dayPeriod: 'night' as const, placedItemIds: ['soft_cloth', 'glow_speck'] as const, memoryFlags: [], affection: 60, level: 5 };
+  const candidates = getHabitatEventCandidates(ctx);
+  assert.ok(candidates.some((e) => e.id === 'habitat-soft-cloth-curl'));
+  assert.ok(candidates.some((e) => e.id === 'habitat-glow-speck-gaze'));
+  const playing = { id: 'play', state: 'playing', durationMs: 1, tags: ['playing'], baseWeight: 1 } as const;
+  const affection = { id: 'aff', state: 'happy', durationMs: 1, tags: ['affection'], baseWeight: 1 } as const;
+  assert.ok(getMemoryEventWeightBoost(playing, [makeMemoryFlag('played_yesterday', '2026-07-09', 2)]) > 0);
+  assert.ok(getMemoryEventWeightBoost(affection, [makeMemoryFlag('touched_often', '2026-07-09', 2)]) > 0);
+  assert.equal(pickWeightedRandomEvent({ now: NOW, vitals: ctx.vitals, personality: 'normal', affection: 60, currentAction: 'none', dayPeriod: 'daytime', activeTogetherTimeMs: 0, lastCareAt: NOW, placedItemIds: [], memoryFlags: [] }, () => 0, []), null);
+});
+
+test('v2 saves migrate to v3 with sanitized habitat and memory while backup recovery still works', () => {
+  const migrated = sanitizeSave({ version: 2, pet: { ...createInitialPetState(NOW), habitat: { unlockedItemIds: ['bad', 'soft_cloth'], placedItemIds: ['bad', 'soft_cloth', 'small_stone'] }, memory: { flags: [{ id: 'fed_often', strength: 9 }, { id: 'bad' }] } }, settings: {}, lastLaunchedAt: NOW }, NOW);
+  assert.equal(migrated.version, CURRENT_SAVE_VERSION);
+  assert.deepEqual(migrated.pet.habitat.unlockedItemIds, ['soft_cloth']);
+  assert.equal(migrated.pet.memory.flags[0].strength, 3);
+  const backup = { version: CURRENT_SAVE_VERSION, pet: createInitialPetState(NOW), settings: {}, lastLaunchedAt: NOW };
+  assert.equal(recoverSave({ version: 999 }, backup, NOW).source, 'backup');
 });

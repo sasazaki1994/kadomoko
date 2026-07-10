@@ -1,3 +1,4 @@
+import { HABITAT_ITEMS } from '../game/data/habitatItems';
 import { expForNextLevel } from '../game/level';
 import type { Personality } from '../game/types';
 import { usePetStore } from '../store/usePetStore';
@@ -31,6 +32,10 @@ export default function StatusPanel() {
   const togglePanel = usePetStore((s) => s.togglePanel);
 
   const nextExp = expForNextLevel(pet.level);
+  const placedHabitat = pet.habitat.placedItemIds
+    .map((id) => HABITAT_ITEMS.find((item) => item.id === id)?.label)
+    .filter(Boolean)
+    .join(' / ') || '小さな布';
 
   return (
     <div className="status-panel">
@@ -55,6 +60,7 @@ export default function StatusPanel() {
         <div className="personality-row">
           性格：{PERSONALITY_LABELS[pet.personality]}
         </div>
+        <div className="habitat-status">すみか：{placedHabitat}</div>
         <DailySummary />
         <DailyTaskList />
       </div>

@@ -189,6 +189,9 @@ export const usePetStore = create<PetStore>((set, get) => {
         dayPeriod: hints.dayPeriod,
         activeTogetherTimeMs: next.careStats.activeTogetherTimeMs,
         lastCareAt: next.lastCareAt,
+        placedItemIds: next.habitat.placedItemIds,
+        memoryFlags: next.memory.flags,
+        level: next.level,
       });
       if (event) {
         next = { ...next, lastRandomEventAt: now };
@@ -202,7 +205,8 @@ export const usePetStore = create<PetStore>((set, get) => {
         const state = deriveBaseState(next.vitals, next.currentAction);
         const base = SPEECH_BY_STATE[state] ?? [];
         const extra = next.unlockedSpeechPackIds.includes('extra') ? SPEECH_PACK_EXTRA : [];
-        const pool = [...base, ...extra, ...hints.speechCandidates];
+        const memorySpeech = next.memory.flags.flatMap((flag) => flag.id === 'played_yesterday' ? ['またあそぶ？'] : flag.id === 'rested_often' ? ['ひとやすみ'] : flag.id === 'long_time_together' ? ['ここにいる'] : flag.id === 'good_mood_day' ? ['いい感じ'] : []);
+        const pool = [...base, ...extra, ...hints.speechCandidates, ...memorySpeech];
         if (pool.length > 0) {
           showBubble(pool[Math.floor(Math.random() * pool.length)]);
         }

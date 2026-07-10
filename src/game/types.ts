@@ -72,6 +72,15 @@ export type DailyTaskState = {
   completed: boolean;
 };
 
+export type HabitatItemId = 'soft_cloth' | 'small_stone' | 'quiet_box' | 'glow_speck' | 'old_note' | 'round_trinket';
+export type HabitatItemTag = 'rest' | 'play' | 'curious' | 'night' | 'calm' | 'memory';
+export type HabitatItem = { id: HabitatItemId; label: string; description: string; unlockLevel?: number; unlockAffection?: number; tags: HabitatItemTag[]; };
+export type HabitatState = { unlockedItemIds: HabitatItemId[]; placedItemIds: HabitatItemId[]; lastItemEventAt: number; };
+
+export type MemoryFlagId = 'played_yesterday' | 'rested_often' | 'touched_often' | 'fed_often' | 'calm_day' | 'good_mood_day' | 'low_hunger_recovered' | 'long_time_together' | 'quiet_week';
+export type MemoryFlag = { id: MemoryFlagId; createdDate: string; expiresDate?: string; strength: number; };
+export type MemoryState = { flags: MemoryFlag[]; };
+
 export type DailyTasksState = {
   /** Local date string YYYY-MM-DD the tasks were rolled for. */
   date: string;
@@ -114,6 +123,8 @@ export type PetState = {
   unlockedSpeechPackIds: string[];
   unlockedPropIds: string[];
   dailyTasks: DailyTasksState;
+  habitat: HabitatState;
+  memory: MemoryState;
   /** epoch ms of the last time progression run. */
   lastUpdatedAt: number;
   /** epoch ms of the last care action. */

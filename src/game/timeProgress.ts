@@ -3,6 +3,8 @@ import { createDailyJournalEntry } from './dailySummary';
 import { BALANCE, THRESHOLDS } from './data/balance';
 import { PERSONALITY_RULES } from './data/personalityRules';
 import { completeTimeTasks, localDateString, rollDailyTasks } from './dailyTasks';
+import { unlockHabitatItems } from './habitat';
+import { deriveMemoryFlagsFromDay, mergeMemoryFlags } from './memory';
 import { computeTendency, EMPTY_CARE_STATS, resolvePersonality } from './personality';
 import { applyVitalDelta, clampVital } from './vitals';
 import type { PetState, TimeProgressResult } from './types';
@@ -42,6 +44,8 @@ export function progressTime(
     vitals: { ...pet.vitals },
     careStats: { ...pet.careStats },
     dailyTasks: { ...pet.dailyTasks },
+    habitat: { ...pet.habitat, unlockedItemIds: [...pet.habitat.unlockedItemIds], placedItemIds: [...pet.habitat.placedItemIds] },
+    memory: { flags: [...pet.memory.flags] },
     lastUpdatedAt: now,
   };
 
@@ -123,6 +127,7 @@ export function progressTime(
   let dayRolledOver = false;
   if (next.dailyTasks.date !== today) {
     dayRolledOver = true;
+    const memoryFlags = deriveMemoryFlagsFromDay(next, next.dailyTasks.date);
     const tendency = computeTendency(next.careStats, next.vitals.mood);
     const history = [
       ...next.personalityHistory,
@@ -132,11 +137,14 @@ export function progressTime(
       ...next,
       personality: resolvePersonality(next.personality, history),
       personalityHistory: history,
+      memory: { flags: mergeMemoryFlags(next.memory.flags, memoryFlags, today) },
       careStats: { ...EMPTY_CARE_STATS },
       dailyTasks: rollDailyTasks(today, rng),
       journalEntries: [...next.journalEntries, createDailyJournalEntry(next)].slice(-30),
     };
   }
+
+  next = unlockHabitatItems(next);
 
   return {
     pet: next,

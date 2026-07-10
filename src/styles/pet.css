@@ -292,3 +292,30 @@
 .daily-summary li {
   line-height: 1.35;
 }
+
+.habitat-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.habitat-item {
+  position: absolute;
+  bottom: 18px;
+  width: 28px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  opacity: 0.82;
+}
+.habitat-item.slot-0 { left: 34px; }
+.habitat-item.slot-1 { right: 34px; }
+.habitat-shape { display: block; }
+.habitat-shape.cloth { width: 24px; height: 10px; background: #d8c7b8; border: 1px solid #9c8978; border-radius: 50% 45% 40% 45%; }
+.habitat-shape.stone { width: 16px; height: 13px; background: #9d9a91; border: 1px solid #746f67; border-radius: 48%; }
+.habitat-shape.box { width: 20px; height: 16px; background: rgba(128, 103, 86, 0.78); border: 1px solid #6d5749; border-radius: 3px; }
+.habitat-shape.glow { width: 9px; height: 9px; background: #e6e2a5; border-radius: 50%; box-shadow: 0 0 8px rgba(230,226,165,0.9); }
+.habitat-shape.note { width: 15px; height: 18px; background: #efe1bd; border: 1px solid #a58e69; border-radius: 2px; transform: rotate(-8deg); }
+.habitat-shape.trinket { width: 14px; height: 14px; background: #c9a1a7; border: 2px solid #8f737d; border-radius: 50%; }
+.habitat-status { margin: 6px 0; font-size: 11px; color: #6d5f55; }
