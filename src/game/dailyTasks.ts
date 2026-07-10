@@ -75,3 +75,43 @@ function completeTasks(
   if (completed.length === 0) return { state, completed };
   return { state: { ...state, tasks }, completed };
 }
+
+/** Returns compact progress text for time-based daily tasks. */
+export function dailyTaskProgressText(
+  state: DailyTasksState,
+  id: DailyTaskId,
+): string | undefined {
+  switch (id) {
+    case 'together_30min':
+      return formatMinuteProgress(state.togetherMsToday, TOGETHER_TASK_TARGET_MS);
+    case 'good_mood_15min':
+      return formatMinuteProgress(state.goodMoodStreakMs, GOOD_MOOD_TASK_TARGET_MS);
+    case 'feed_once':
+    case 'touch_once':
+    case 'play_once':
+    case 'rest_once':
+      return undefined;
+    default: {
+      const exhaustive: never = id;
+      return exhaustive;
+    }
+  }
+}
+
+/** Quiet bubble text shown when one or more daily tasks are newly completed. */
+export function dailyTaskCompletionBubble(
+  completedIds: readonly DailyTaskId[],
+): string | undefined {
+  if (completedIds.length === 0) return undefined;
+  if (completedIds.length === 1) return '日課できた';
+  return `日課${completedIds.length}つできた`;
+}
+
+function formatMinuteProgress(currentMs: number, targetMs: number): string {
+  const targetMinutes = Math.ceil(targetMs / 60_000);
+  const currentMinutes = Math.min(
+    targetMinutes,
+    Math.max(0, Math.floor(currentMs / 60_000)),
+  );
+  return `${currentMinutes}/${targetMinutes}分`;
+}
