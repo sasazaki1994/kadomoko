@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { performCareAction } from '../src/game/actions';
 import { BALANCE } from '../src/game/data/balance';
-import { rollDailyTasks } from '../src/game/dailyTasks';
+import { dailyTaskCompletionBubble, getDailyTaskProgress, rollDailyTasks } from '../src/game/dailyTasks';
 import { gainExp, LEVEL_REQUIREMENTS } from '../src/game/level';
 import { computeTendency, EMPTY_CARE_STATS, resolvePersonality } from '../src/game/personality';
 import { CURRENT_SAVE_VERSION, createInitialPetState, recoverSave, sanitizeSave } from '../src/game/saveData';
@@ -112,6 +112,39 @@ test('daily tasks roll deterministic unique task sets', () => {
   assert.equal(tasks.length, 3);
   assert.equal(new Set(tasks.map((task) => task.id)).size, 3);
   assert.equal(tasks.every((task) => task.completed === false), true);
+});
+
+test('daily task progress helpers report capped whole-minute progress', () => {
+  const dailyTasks = {
+    date: '2026-07-09',
+    tasks: [],
+    togetherMsToday: 12 * 60_000 + 59_000,
+    goodMoodStreakMs: 6 * 60_000 + 30_000,
+  };
+
+  assert.deepEqual(getDailyTaskProgress(dailyTasks, 'together_30min'), {
+    current: 12,
+    target: 30,
+    unit: 'min',
+  });
+  assert.deepEqual(getDailyTaskProgress(dailyTasks, 'good_mood_15min'), {
+    current: 6,
+    target: 15,
+    unit: 'min',
+  });
+  assert.deepEqual(
+    getDailyTaskProgress({ ...dailyTasks, togetherMsToday: 45 * 60_000 }, 'together_30min'),
+    { current: 30, target: 30, unit: 'min' },
+  );
+  assert.equal(getDailyTaskProgress(dailyTasks, 'feed_once'), null);
+});
+
+test('daily task completion bubble helper stays quiet without completed tasks', () => {
+  assert.equal(dailyTaskCompletionBubble([]), undefined);
+  const bubble = dailyTaskCompletionBubble(['feed_once']);
+  assert.equal(typeof bubble, 'string');
+  assert.ok((bubble ?? '').length > 0);
+  assert.ok((bubble ?? '').length <= 8);
 });
 
 test('personality tendency and repeated tendency resolution are stable', () => {

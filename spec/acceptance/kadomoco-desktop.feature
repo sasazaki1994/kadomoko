@@ -19,6 +19,18 @@ Feature: KadoMoco desktop pet
     When the user opens the status panel
     Then the level, EXP, vitals, daily tasks, and personality are displayed
 
+  Scenario: Daily task progress is visible
+    Given the status panel is open
+    When the pet has spent time together today
+    Then time-based daily tasks show quiet progress text
+    And completed daily tasks remain shown as checked
+
+  Scenario: Completing a daily task shows a quiet bubble
+    Given a daily task is incomplete
+    When the user completes that daily task
+    Then a short quiet bubble is shown
+    And the task is marked completed
+
   Scenario: Close hides the window instead of quitting
     Given the Electron window is visible
     When the user closes the window without selecting quit
