@@ -1,3 +1,4 @@
+import { localDateString } from './dailyTasks';
 import { getDayPeriod, getSeason } from './lifeRhythm';
 import { EPISODE_IDS, EPISODE_TEXT } from './data/episodes';
 import type { EpisodeEntry, EpisodeId, EpisodeTrigger, PetState, Season } from './types';
@@ -9,13 +10,7 @@ const MAX_TEXT = 80;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const SAFE_ID = /^[a-z0-9_-]{1,48}$/i;
 
-function localDate(now: number): string {
-  const d = new Date(now);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
+const localDate = localDateString;
 
 function entry(id: EpisodeId, trigger: EpisodeTrigger, now: number, relatedMemoryFlagIds: string[] = [], relatedHabitatItemIds: string[] = []): EpisodeEntry {
   return { id, date: localDate(now), ...EPISODE_TEXT[id], trigger, relatedMemoryFlagIds, relatedHabitatItemIds };
@@ -38,7 +33,7 @@ export function createEpisodeCandidates(pet: PetState, trigger: EpisodeTrigger, 
   const completed = new Set(pet.dailyTasks.tasks.filter((t) => t.completed).map((t) => t.id));
   const recentTendencies = pet.personalityHistory.slice(-3).map((x) => x.tendency);
 
-  if (trigger === 'day_rollover' && pet.vitals.mood >= 60 && pet.vitals.hunger >= 40 && pet.vitals.mood >= 30) candidates.push(entry('first_quiet_day', trigger, now));
+  if (trigger === 'day_rollover' && pet.vitals.mood >= 60 && pet.vitals.hunger >= 40) candidates.push(entry('first_quiet_day', trigger, now));
   if (pet.careStats.playCount >= 2 || recentTendencies.includes('energetic')) candidates.push(entry('played_again', trigger, now, ['played_yesterday']));
   if (pet.careStats.restCount >= 2 || (pet.vitals.sleepiness <= 45 && recentTendencies.includes('relaxed'))) candidates.push(entry('rested_well', trigger, now, ['rested_often']));
   if (hasProp(pet, 'old_note') && (trigger === 'random_event' || trigger === 'habitat_event' || pet.personality === 'moody')) candidates.push(entry('found_old_note', trigger, now, [], ['old_note']));

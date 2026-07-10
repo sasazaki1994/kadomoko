@@ -2,8 +2,7 @@ import type { DailyJournalEntry, PetState } from './types';
 
 const BLAMING_PATTERNS = ['遅い', 'さみしかった', 'なんで', '放置'];
 
-export function buildDailySummary(pet: PetState, now: number): string[] {
-  void now;
+export function buildDailySummary(pet: PetState): string[] {
   const lines: string[] = [];
   if (pet.vitals.sleepiness >= 80) lines.push('少し眠そう');
   if (pet.vitals.hunger < 20) lines.push('おなかが空いていそう');
@@ -18,7 +17,7 @@ export function buildDailySummary(pet: PetState, now: number): string[] {
 }
 
 export function buildJournalNote(pet: PetState): string {
-  return buildDailySummary(pet, Date.now())[0] ?? 'ゆっくり過ごした';
+  return buildDailySummary(pet)[0] ?? 'ゆっくり過ごした';
 }
 
 export function createDailyJournalEntry(pet: PetState): DailyJournalEntry {

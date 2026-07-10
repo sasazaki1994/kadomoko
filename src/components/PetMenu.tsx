@@ -76,21 +76,15 @@ export default function PetMenu() {
         ) : null}
         <hr />
         <button
+          title="ステータスと設定をひとつのパネルで表示"
           onClick={() => {
             togglePanel();
           }}
         >
-          ステータスを見る
+          ステータス・設定
         </button>
         <button onClick={toggleRecordPanel}>
           記録を見る
-        </button>
-        <button
-          onClick={() => {
-            togglePanel();
-          }}
-        >
-          設定を見る
         </button>
         <button
           onClick={() => {

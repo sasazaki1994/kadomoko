@@ -3,7 +3,7 @@ import { usePetStore } from '../store/usePetStore';
 
 export default function DailySummary() {
   const pet = usePetStore((s) => s.pet);
-  const lines = buildDailySummary(pet, Date.now());
+  const lines = buildDailySummary(pet);
 
   return (
     <section className="daily-summary" aria-label="今日の様子">

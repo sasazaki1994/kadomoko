@@ -142,7 +142,11 @@ export const usePetStore = create<PetStore>((set, get) => {
   const reactToSignal = (pet: PetState, signalId: Parameters<typeof applySecretSignalReaction>[1], now: number) => {
     const result = applySecretSignalReaction(pet, signalId, now);
     applyPetUpdate(result.pet);
-    if (result.tempState && isTempState(result.tempState)) showTempState(result.tempState, (result.effect as CharacterEffect) ?? 'gaze', 3_000);
+    if (result.tempState) {
+      // Non-temp target states (e.g. hello_corner's happy) still show as a short reaction.
+      const state = isTempState(result.tempState) ? result.tempState : 'reaction';
+      showTempState(state, (result.effect as CharacterEffect) ?? 'gaze', 3_000);
+    }
     if (result.bubble) get().showBubble(result.bubble, true);
   };
 
@@ -245,7 +249,9 @@ export const usePetStore = create<PetStore>((set, get) => {
       }
 
       applyPetUpdate(next, { leveledUp: result.leveledUp, newLevel: result.newLevel });
-      if (!result.leveledUp && settings.bubbleFrequency === 'normal') showDailyTaskBubble(result.completedTaskIds);
+      // Task completion is progress feedback, not ambient chatter: show it on
+      // 'quiet' too (matching catchUpOffline), and suppress only on 'off'.
+      if (!result.leveledUp && settings.bubbleFrequency !== 'off') showDailyTaskBubble(result.completedTaskIds);
 
       if (!event && Math.random() < AMBIENT_SPEECH_CHANCE_PER_MINUTE * BUBBLE_MULTIPLIER[settings.bubbleFrequency]) {
         const state = deriveBaseState(next.vitals, next.currentAction);
