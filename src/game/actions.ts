@@ -72,6 +72,38 @@ export function isActionOnCooldown(pet: PetState, action: CareActionId, now: num
   return last !== undefined && now - last < BALANCE.actions.cooldownMs;
 }
 
+export function getCareActionBlockReason(
+  pet: PetState,
+  action: CareActionId,
+  now: number,
+): CareActionResult['blockReason'] {
+  if (isActionOnCooldown(pet, action, now)) return 'cooldown';
+  if (action === 'play' && pet.vitals.sleepiness >= THRESHOLDS.playBlockedSleepiness) {
+    return 'tooSleepy';
+  }
+  if (action === 'play' && pet.vitals.hunger < THRESHOLDS.playBlockedHunger) {
+    return 'tooHungry';
+  }
+  return undefined;
+}
+
+export function bubbleForBlockReason(reason: CareActionResult['blockReason']): string | undefined {
+  switch (reason) {
+    case 'cooldown':
+      return 'ちょっと待って';
+    case 'tooSleepy':
+      return 'ちょっと眠い';
+    case 'tooHungry':
+      return 'おなかすいた';
+    case undefined:
+      return undefined;
+    default: {
+      const exhaustive: never = reason;
+      return exhaustive;
+    }
+  }
+}
+
 export function performCareAction(
   pet: PetState,
   action: CareActionId,
@@ -83,11 +115,12 @@ export function performCareAction(
     blockReason: reason,
     leveledUp: false,
     completedTaskIds: [],
-    bubble: reason === 'cooldown' ? undefined : '……',
-    tempState: reason === 'cooldown' ? undefined : 'reaction',
+    bubble: bubbleForBlockReason(reason),
+    tempState: 'reaction',
   });
 
-  if (isActionOnCooldown(pet, action, now)) return blocked('cooldown');
+  const blockReason = getCareActionBlockReason(pet, action, now);
+  if (blockReason) return blocked(blockReason);
 
   let next: PetState = {
     ...pet,
@@ -129,8 +162,6 @@ export function performCareAction(
       break;
     }
     case 'play': {
-      if (pet.vitals.sleepiness >= THRESHOLDS.playBlockedSleepiness) return blocked('tooSleepy');
-      if (pet.vitals.hunger < THRESHOLDS.playBlockedHunger) return blocked('tooHungry');
       vitalDelta = {
         mood: A.play.mood,
         affection: A.play.affection,

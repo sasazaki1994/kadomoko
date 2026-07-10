@@ -32,6 +32,28 @@ Feature: KadoMoco desktop pet
     And the window position is restored when it is still visible on a display
     And the always-on-top setting is restored
 
+  Scenario: Corrupted primary save recovers from backup
+    Given the primary save data is corrupted
+    And the backup save data is valid
+    When the app is restarted
+    Then the pet state is restored from the backup
+    And settings, window position, and last launch time remain recoverable
+    And the app does not crash
+
+  Scenario: Temporary resting is not persisted as a long-running action
+    Given the pet has sleepiness below 20
+    When the user selects "休ませる"
+    Then the pet briefly shows the resting animation
+    And the saved current action remains "none"
+
+  Scenario: Blocked care actions provide quiet feedback
+    Given a care action is on cooldown
+    When the user selects the same care action again
+    Then a short quiet bubble is shown
+    And the pet vitals do not change from the blocked action
+    When the pet is too sleepy or too hungry to play
+    Then "遊ぶ" is visibly unavailable or shows a short reason bubble
+
   Scenario: Long idle periods do not delete or permanently remove the pet
     Given the app has been idle for longer than the maximum offline progression window
     When the app resumes or restarts
@@ -39,3 +61,9 @@ Feature: KadoMoco desktop pet
     And the pet does not die
     And the pet does not permanently leave
     And saved pet data is not lost
+
+  Scenario: Windows distribution can be packaged
+    Given dependencies are installed
+    When the developer runs "npm run package:win"
+    Then a Windows desktop application package is written under "release/"
+    And the pet sprite sheet is included in the production build

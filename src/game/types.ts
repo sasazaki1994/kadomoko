@@ -29,7 +29,10 @@ export type Personality =
 
 export type CareActionId = 'feed' | 'touch' | 'play' | 'rest';
 
-/** Long-running action the pet is engaged in ('none' when free). */
+/**
+ * Long-running action persisted in save data ('none' when free).
+ * Short animations such as resting are PetMachineState-only temporary states.
+ */
 export type CurrentAction = 'none' | 'sleeping';
 
 export type CareStats = {

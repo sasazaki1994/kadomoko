@@ -24,8 +24,21 @@ type StoreSchema = {
   lastLaunchedAt: number;
 };
 
+type SaveEnvelope = StoreSchema;
+
 const store = new Store<StoreSchema>({
   name: 'kadomoco-save',
+  defaults: {
+    version: 1,
+    pet: null,
+    settings: { alwaysOnTop: false, volume: 50 },
+    windowPosition: null,
+    lastLaunchedAt: 0,
+  },
+});
+
+const backupStore = new Store<SaveEnvelope>({
+  name: 'kadomoco-save-backup',
   defaults: {
     version: 1,
     pet: null,
@@ -70,7 +83,22 @@ function resolveInitialPosition(width: number, height: number): { x: number; y: 
 function persistWindowPosition() {
   if (!win) return;
   const [x, y] = win.getPosition();
+  writeBackup();
   store.set('windowPosition', { x, y });
+}
+
+function currentPrimarySave() {
+  return {
+    version: store.get('version'),
+    pet: store.get('pet'),
+    settings: store.get('settings'),
+    windowPosition: store.get('windowPosition'),
+    lastLaunchedAt: store.get('lastLaunchedAt'),
+  };
+}
+
+function writeBackup() {
+  backupStore.set(currentPrimarySave());
 }
 
 function createTrayIcon() {
@@ -141,6 +169,7 @@ function updateTrayMenu() {
 
 function setAlwaysOnTop(value: boolean) {
   const settings = store.get('settings');
+  writeBackup();
   store.set('settings', { ...settings, alwaysOnTop: value });
   win?.setAlwaysOnTop(value);
   updateTrayMenu();
@@ -206,16 +235,17 @@ function createTray() {
 
 function registerIpc() {
   ipcMain.handle('save:load', () => ({
-    version: store.get('version'),
-    pet: store.get('pet'),
-    settings: store.get('settings'),
-    lastLaunchedAt: store.get('lastLaunchedAt'),
+    primary: currentPrimarySave(),
+    backup: backupStore.store,
   }));
 
   ipcMain.handle('save:write-pet', (_event, pet: unknown, version: number) => {
-    store.set('pet', pet);
-    store.set('version', version);
-    store.set('lastLaunchedAt', Date.now());
+    writeBackup();
+    store.set({
+      pet,
+      version,
+      lastLaunchedAt: Date.now(),
+    });
   });
 
   ipcMain.handle('settings:get', () => store.get('settings'));
