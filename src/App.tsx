@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import DevToolsPanel from './components/DevToolsPanel';
 import DiscoveryHint from './components/DiscoveryHint';
+import DreamHint from './components/DreamHint';
 import PetCharacter from './components/PetCharacter';
 import PetMenu from './components/PetMenu';
 import SpeechBubble from './components/SpeechBubble';
@@ -24,6 +25,7 @@ export default function App() {
   const recordPanelOpen = usePetStore((s) => s.recordPanelOpen);
   const activeDiscovery = usePetStore((s) => s.pet.discovery.active);
   const activeTinyPlay = usePetStore((s) => s.pet.tinyPlay.active);
+  const dreams = usePetStore((s) => s.pet.dreams);
   const init = usePetStore((s) => s.init);
   const tick = usePetStore((s) => s.tick);
   const catchUpOffline = usePetStore((s) => s.catchUpOffline);
@@ -72,6 +74,7 @@ export default function App() {
     >
       <SeasonAmbient hidden={menuOpen || panelOpen || recordPanelOpen || devPanelOpen} />
       {!menuOpen && !panelOpen && !recordPanelOpen && !devPanelOpen && <DiscoveryHint discovery={activeDiscovery} />}
+      {!menuOpen && !panelOpen && !recordPanelOpen && !devPanelOpen && <DreamHint dreams={dreams} />}
       <SpeechBubble />
       <TinyPlayLayer active={activeTinyPlay} hidden={menuOpen || panelOpen || recordPanelOpen || devPanelOpen} />
       <PetCharacter />

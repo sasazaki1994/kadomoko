@@ -1,5 +1,6 @@
 import { grantExp } from './actions';
 import { resolveDiscovery } from './discoveries';
+import { listenToDream } from './dreams';
 import { CONTEXT_ACTIONS, CONTEXT_ACTION_BY_ID } from './data/contextActions';
 import { deriveBaseState } from './stateMachine';
 import { applyVitalDelta } from './vitals';
@@ -13,6 +14,7 @@ const BUBBLES: Record<ContextActionId, readonly string[]> = {
   small_bite: ['少しだけ', 'もぐ'],
   tidy_habitat: ['いい感じ', 'すっきり'],
   inspect_edge: ['？', 'いい感じ', 'ここにある'],
+  listen_dream: ['……', 'ゆめ'],
 };
 
 function machineState(pet: PetState) {
@@ -58,6 +60,8 @@ function isConditionMet(pet: PetState, actionId: ContextActionId): boolean {
       return hasPlacedHabitatItems(pet);
     case 'inspect_edge':
       return pet.currentAction !== 'sleeping' && Boolean(pet.discovery?.active);
+    case 'listen_dream':
+      return pet.currentAction !== 'sleeping' && Boolean(pet.dreams?.pending);
     default: {
       const exhaustive: never = actionId;
       return exhaustive;
@@ -84,6 +88,8 @@ function deltaFor(actionId: ContextActionId): Partial<PetVitals> {
     case 'small_bite': return { hunger: 12, mood: 2, affection: 1 };
     case 'tidy_habitat': return { mood: 4, affection: 1 };
     case 'inspect_edge': return { mood: 4, affection: 1 };
+    // listenToDream applies its own vitals/exp/episode; no generic delta here.
+    case 'listen_dream': return {};
     default: { const exhaustive: never = actionId; return exhaustive; }
   }
 }
@@ -92,6 +98,26 @@ export function performContextAction(pet: PetState, actionId: ContextActionId, n
   const def = CONTEXT_ACTION_BY_ID[actionId];
   if (!def || !isConditionMet(pet, actionId) || isOnCooldown(pet, def, now)) {
     return { pet, ok: false, actionId, leveledUp: false, bubble: 'ちょっと待って', tempState: 'reaction' };
+  }
+  if (actionId === 'listen_dream') {
+    const listened = listenToDream(pet, now);
+    if (!listened.ok) {
+      return { pet: listened.pet, ok: false, actionId, leveledUp: false, bubble: 'ちょっと待って', tempState: 'reaction' };
+    }
+    const next: PetState = {
+      ...listened.pet,
+      lastContextActionAt: { ...listened.pet.lastContextActionAt, [actionId]: now },
+      lastCareAt: now,
+    };
+    return {
+      pet: next,
+      ok: true,
+      actionId,
+      leveledUp: listened.leveledUp,
+      newLevel: listened.newLevel,
+      bubble: listened.bubble,
+      tempState: 'curious',
+    };
   }
   let next: PetState = {
     ...pet,

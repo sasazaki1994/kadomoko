@@ -25,6 +25,12 @@ export const EPISODE_TEXT: Record<EpisodeId, { title: string; text: string }> = 
   found_cool_shade: { title: '涼しい場所', text: '涼しそうな場所を見つけて落ち着いていた。' },
   listened_to_quiet_leaves: { title: '葉の音', text: '遠くの葉の音を聞いているようだった。' },
   curled_up_warm: { title: 'ぬくもり', text: '丸くなって、ぬくぬくしていた。' },
+  dreamed_of_floating_lights: { title: '光の夢', text: 'ただよう光の夢を見ていたようだった。' },
+  dreamed_of_wide_meadow: { title: '野原の夢', text: '広い野原の夢を見て、少しうれしそうだった。' },
+  dreamed_of_tiny_feast: { title: 'ごちそうの夢', text: 'ごちそうの夢を見ていたのか、口をもごもごさせていた。' },
+  dreamed_of_gentle_rain: { title: '雨の夢', text: 'やさしい雨の夢を見て、静かに眠っていた。' },
+  dreamed_of_far_signal: { title: '合図の夢', text: '遠くの合図の夢を見ていたようだった。' },
+  dreamed_of_season_wind: { title: '風の夢', text: '季節の風の夢を見て、鼻をひくひくさせていた。' },
 };
 
 export const EPISODE_IDS = Object.keys(EPISODE_TEXT) as EpisodeId[];

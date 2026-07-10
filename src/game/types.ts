@@ -36,7 +36,8 @@ export type ContextActionId =
   | 'stay_together'
   | 'small_bite'
   | 'tidy_habitat'
-  | 'inspect_edge';
+  | 'inspect_edge'
+  | 'listen_dream';
 
 export type ContextActionDef = {
   id: ContextActionId;
@@ -134,7 +135,13 @@ export type EpisodeId =
   | 'felt_spring_air'
   | 'found_cool_shade'
   | 'listened_to_quiet_leaves'
-  | 'curled_up_warm';
+  | 'curled_up_warm'
+  | 'dreamed_of_floating_lights'
+  | 'dreamed_of_wide_meadow'
+  | 'dreamed_of_tiny_feast'
+  | 'dreamed_of_gentle_rain'
+  | 'dreamed_of_far_signal'
+  | 'dreamed_of_season_wind';
 
 export type EpisodeTrigger =
   | 'day_rollover'
@@ -145,7 +152,8 @@ export type EpisodeTrigger =
   | 'resume'
   | 'discovery'
   | 'secret_signal'
-  | 'tiny_play';
+  | 'tiny_play'
+  | 'dream';
 
 export type EpisodeEntry = {
   id: EpisodeId;
@@ -219,6 +227,7 @@ export type PetState = {
   discovery: DiscoveryState;
   signals: SignalState;
   tinyPlay: TinyPlayState;
+  dreams: DreamState;
 };
 
 export type DiscoveryId =
@@ -345,3 +354,49 @@ export type TinyPlayId = 'follow_dot' | 'mirror_bounce' | 'hide_peek' | 'slow_tu
 export type TinyPlaySession = { id: TinyPlayId; startedAt: number; endsAt: number; phase: 'starting' | 'playing' | 'ending'; interacted?: boolean };
 export type TinyPlayState = { active: TinyPlaySession | null; lastStartedAt: number; completedToday: TinyPlayId[]; date: string };
 export type TinyPlayDef = { id: TinyPlayId; label: string; durationMs: number; bubble?: string; effect?: 'wiggle' | 'hop' | 'spin' | 'peek' | 'curl' | 'gaze'; episodeId?: EpisodeId };
+
+export type DreamThemeId =
+  | 'floating_lights'
+  | 'wide_meadow'
+  | 'tiny_feast'
+  | 'gentle_rain'
+  | 'far_signal'
+  | 'season_wind';
+
+export type DreamMood = 'warm' | 'quiet' | 'curious';
+
+export type DreamThemeDef = {
+  id: DreamThemeId;
+  label: string;
+  /** Short bubble shown when the fragment is listened to. */
+  bubble: string;
+  /** Fragment text stored in the dream record. */
+  fragmentText: string;
+  mood: DreamMood;
+  episodeId: EpisodeId;
+  episodeText: string;
+};
+
+export type DreamFragment = {
+  themeId: DreamThemeId;
+  date: string;
+  mood: DreamMood;
+  text: string;
+  /** True when the user listened to the dream before it faded. */
+  listened: boolean;
+};
+
+export type PendingDream = DreamFragment & { expiresAt: number };
+
+export type DreamState = {
+  /** Theme forming while the pet sleeps; becomes pending on wake. */
+  brewing: { themeId: DreamThemeId; startedAt: number } | null;
+  /** Fragment waiting to be listened to; fades quietly when it expires. */
+  pending: PendingDream | null;
+  /** Recent dream fragments, oldest first. */
+  fragments: DreamFragment[];
+  lastDreamAt: number;
+  /** Local date used for the per-day dream cap. */
+  date: string;
+  countToday: number;
+};
