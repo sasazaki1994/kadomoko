@@ -29,6 +29,7 @@ import {
 } from '../game/stateMachine';
 import { dailyTaskCompletionBubble } from '../game/dailyTasks';
 import { progressTime } from '../game/timeProgress';
+import { completeQuietMoment as resolveQuietMoment } from '../game/quietMoments';
 import type {
   CareActionId,
   ContextActionId,
@@ -72,6 +73,7 @@ export type PetStore = {
   menuOpen: boolean;
   devPanelOpen: boolean;
   recordPanelOpen: boolean;
+  quietMomentOpen: boolean;
   alwaysOnTop: boolean;
   settings: SaveSettings;
 
@@ -86,6 +88,9 @@ export type PetStore = {
   setMenuOpen: (open: boolean) => void;
   toggleDevPanel: () => void;
   toggleRecordPanel: () => void;
+  openQuietMoment: () => void;
+  closeQuietMoment: () => void;
+  completeQuietMoment: () => void;
   toggleAlwaysOnTop: () => Promise<void>;
   quitApp: () => void;
   showBubble: (text: string, force?: boolean) => void;
@@ -191,6 +196,7 @@ export const usePetStore = create<PetStore>((set, get) => {
     menuOpen: false,
     devPanelOpen: false,
     recordPanelOpen: false,
+    quietMomentOpen: false,
     alwaysOnTop: false,
     settings: { alwaysOnTop: false, volume: 50, statusDisplayMode: 'both', ambientFrequency: 'normal', bubbleFrequency: 'normal', reduceActivityWhenFullscreen: true },
 
@@ -352,10 +358,26 @@ export const usePetStore = create<PetStore>((set, get) => {
       recordSignal(get().pet, { input: 'click', at: Date.now() });
     },
 
-    togglePanel: () => { const now = Date.now(); recordSignal(get().pet, { input: 'panel_open', at: now }); set((s) => ({ panelOpen: !s.panelOpen, menuOpen: false, recordPanelOpen: false })); },
-    setMenuOpen: (open) => { if (open) recordSignal(get().pet, { input: 'menu_open', at: Date.now() }); set({ menuOpen: open }); },
-    toggleDevPanel: () => set((s) => ({ devPanelOpen: !s.devPanelOpen })),
-    toggleRecordPanel: () => set((s) => ({ recordPanelOpen: !s.recordPanelOpen, menuOpen: false, panelOpen: false })),
+    togglePanel: () => { const now = Date.now(); recordSignal(get().pet, { input: 'panel_open', at: now }); set((s) => ({ panelOpen: !s.panelOpen, menuOpen: false, recordPanelOpen: false, quietMomentOpen: false })); },
+    setMenuOpen: (open) => { if (open) recordSignal(get().pet, { input: 'menu_open', at: Date.now() }); set({ menuOpen: open, ...(open ? { quietMomentOpen: false } : {}) }); },
+    toggleDevPanel: () => set((s) => ({ devPanelOpen: !s.devPanelOpen, quietMomentOpen: false })),
+    toggleRecordPanel: () => set((s) => ({ recordPanelOpen: !s.recordPanelOpen, menuOpen: false, panelOpen: false, quietMomentOpen: false })),
+    openQuietMoment: () => set({
+      quietMomentOpen: true,
+      menuOpen: false,
+      panelOpen: false,
+      recordPanelOpen: false,
+      devPanelOpen: false,
+    }),
+    closeQuietMoment: () => set({ quietMomentOpen: false }),
+    completeQuietMoment: () => {
+      const result = resolveQuietMoment(get().pet, Date.now());
+      if (result.rewarded) {
+        applyPetUpdate(result.pet, { leveledUp: result.leveledUp, newLevel: result.newLevel });
+        if (!result.leveledUp) showTempState('reaction', 'gaze', 3_000);
+      }
+      get().showBubble(result.bubble, true);
+    },
 
     toggleAlwaysOnTop: async () => {
       const target = !get().alwaysOnTop;

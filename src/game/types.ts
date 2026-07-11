@@ -228,6 +228,7 @@ export type PetState = {
   signals: SignalState;
   tinyPlay: TinyPlayState;
   dreams: DreamState;
+  quietMoments: QuietMomentState;
 };
 
 export type DiscoveryId =
@@ -399,4 +400,11 @@ export type DreamState = {
   /** Local date used for the per-day dream cap. */
   date: string;
   countToday: number;
+};
+
+export type QuietMomentState = {
+  /** Local date used for the gentle daily reward cap. */
+  date: string;
+  completedToday: number;
+  lastCompletedAt: number;
 };
