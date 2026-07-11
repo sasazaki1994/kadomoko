@@ -1,5 +1,5 @@
 import { bubbleForBlockReason, getCareActionBlockReason } from '../game/actions';
-import { getAvailableContextAction } from '../game/contextActions';
+import { getAvailableContextActions } from '../game/contextActions';
 import { usePetStore } from '../store/usePetStore';
 import type { CareActionId } from '../game/types';
 
@@ -26,7 +26,7 @@ export default function PetMenu() {
     action,
     blockReason: getCareActionBlockReason(pet, action, now),
   }));
-  const contextAction = getAvailableContextAction(pet, now);
+  const contextActions = getAvailableContextActions(pet, now);
   const tinyPlayActive = pet.tinyPlay.active !== null;
 
   return (
@@ -63,15 +63,18 @@ export default function PetMenu() {
               いっしょに見る
             </button>
           </>
-        ) : contextAction ? (
+        ) : contextActions.length > 0 ? (
           <>
             <hr />
-            <button
-              title={contextAction.description}
-              onClick={() => performContextAction(contextAction.id)}
-            >
-              {contextAction.label}
-            </button>
+            {contextActions.map((contextAction) => (
+              <button
+                key={contextAction.id}
+                title={contextAction.description}
+                onClick={() => performContextAction(contextAction.id)}
+              >
+                {contextAction.label}
+              </button>
+            ))}
           </>
         ) : null}
         <hr />

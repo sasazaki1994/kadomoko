@@ -75,8 +75,21 @@ function isOnCooldown(pet: PetState, def: ContextActionDef, now: number): boolea
 }
 
 export function getAvailableContextAction(pet: PetState, now: number): ContextActionDef | null {
-  const candidates = CONTEXT_ACTIONS.filter((def) => isConditionMet(pet, def.id) && !isOnCooldown(pet, def, now));
-  return candidates.sort((a, b) => b.priority - a.priority)[0] ?? null;
+  return getAvailableContextActions(pet, now, 1)[0] ?? null;
+}
+
+export function getAvailableContextActions(
+  pet: PetState,
+  now: number,
+  limit = 3,
+): ContextActionDef[] {
+  const safeLimit = Math.max(0, Math.floor(limit));
+  if (safeLimit === 0) return [];
+
+  return CONTEXT_ACTIONS
+    .filter((def) => isConditionMet(pet, def.id) && !isOnCooldown(pet, def, now))
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, safeLimit);
 }
 
 function deltaFor(actionId: ContextActionId): Partial<PetVitals> {
