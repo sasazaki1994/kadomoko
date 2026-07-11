@@ -7,6 +7,7 @@ import { DEFAULT_REACTION_IDS } from './data/reactions';
 import { localDateString, rollDailyTasks } from './dailyTasks';
 import { EMPTY_CARE_STATS } from './personality';
 import { INITIAL_VITALS } from './vitals';
+import { finiteNumber, isRecord } from './validation';
 import type {
   CareActionId,
   CurrentAction,
@@ -82,14 +83,6 @@ export type RawSaveEnvelope = Partial<SaveData> & {
 };
 
 export type SaveRecoverySource = 'primary' | 'backup' | 'initial';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function finiteNumber(value: unknown, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
-}
 
 function vital(value: unknown, fallback: number): number {
   return Math.min(100, Math.max(0, Math.round(finiteNumber(value, fallback))));

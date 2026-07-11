@@ -15,6 +15,7 @@ import { applySecretSignalReaction, createEmptySignalState, recordSignalInput } 
 import { advanceTinyPlay, interactWithTinyPlay, maybeStartTinyPlay, createEmptyTinyPlayState } from '../game/tinyPlays';
 import { getLifeRhythmHints } from '../game/lifeRhythm';
 import { maybeRollRandomEvent, pickRandomEvent } from '../game/randomEvents';
+import { pickRandom, rollChance } from '../game/random';
 import {
   createInitialPetState,
   CURRENT_SAVE_VERSION,
@@ -263,13 +264,14 @@ export const usePetStore = create<PetStore>((set, get) => {
       // 'quiet' too (matching catchUpOffline), and suppress only on 'off'.
       if (!result.leveledUp && settings.bubbleFrequency !== 'off') showDailyTaskBubble(result.completedTaskIds);
 
-      if (!event && Math.random() < AMBIENT_SPEECH_CHANCE_PER_MINUTE * BUBBLE_MULTIPLIER[settings.bubbleFrequency]) {
+      if (!event && rollChance(AMBIENT_SPEECH_CHANCE_PER_MINUTE * BUBBLE_MULTIPLIER[settings.bubbleFrequency])) {
         const state = deriveBaseState(next.vitals, next.currentAction);
         const base = SPEECH_BY_STATE[state] ?? [];
         const extra = next.unlockedSpeechPackIds.includes('extra') ? SPEECH_PACK_EXTRA : [];
         const pool = [...base, ...extra, ...hints.speechCandidates];
         if (pool.length > 0) {
-          showBubble(pool[Math.floor(Math.random() * pool.length)]);
+          const message = pickRandom(pool);
+          if (message) showBubble(message);
         }
       }
     },
@@ -285,7 +287,7 @@ export const usePetStore = create<PetStore>((set, get) => {
       if (fromResume && now - lastResumeReactionAt >= RESUME_REACTION_MIN_GAP_MS) {
         lastResumeReactionAt = now;
         showTempState('curious', 'gaze', 3_000);
-        get().showBubble(RESUME_BUBBLES[Math.floor(Math.random() * RESUME_BUBBLES.length)], true);
+        get().showBubble(pickRandom(RESUME_BUBBLES) ?? RESUME_BUBBLES[0], true);
       }
     },
 
@@ -344,7 +346,7 @@ export const usePetStore = create<PetStore>((set, get) => {
       const { pet, showBubble } = get();
       const unlocked = CLICK_REACTIONS.filter((r) => pet.unlockedReactionIds.includes(r.id));
       const pool = unlocked.length > 0 ? unlocked : CLICK_REACTIONS.slice(0, 1);
-      const reaction = pool[Math.floor(Math.random() * pool.length)];
+      const reaction = pickRandom(pool) ?? CLICK_REACTIONS[0];
       showTempState('reaction', reaction.effect, REACTION_DURATION_MS);
       if (reaction.bubble) showBubble(reaction.bubble);
       recordSignal(get().pet, { input: 'click', at: Date.now() });

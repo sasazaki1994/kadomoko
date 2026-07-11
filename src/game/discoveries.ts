@@ -1,6 +1,7 @@
 import { localDateString } from './dailyTasks';
 import { appendEpisodeEntries } from './episodes';
 import { getDayPeriod } from './lifeRhythm';
+import { pickRandom, randomOffset, rollChance } from './random';
 import { DISCOVERY_BY_ID, DISCOVERY_DEFS, DISCOVERY_IDS } from './data/discoveries';
 import type { AmbientFrequency, DiscoveryEntry, DiscoveryId, DiscoveryState, EpisodeEntry, PetState } from './types';
 
@@ -47,7 +48,7 @@ function hasHintItem(pet: PetState): boolean {
   return items.some((id) => id === 'old_note' || id === 'glow_speck') || (Array.isArray(anyPet.memoryFlags) && anyPet.memoryFlags.some((x) => typeof x === 'string' && x.includes('calm')));
 }
 
-function rollChance(pet: PetState, now: number, frequency: AmbientFrequency): number {
+function rollChanceForPet(pet: PetState, now: number, frequency: AmbientFrequency): number {
   let chance = 0.16;
   const period = getDayPeriod(new Date(now));
   if (pet.vitals.mood >= 70) chance += 0.08;
@@ -64,6 +65,7 @@ function rollChance(pet: PetState, now: number, frequency: AmbientFrequency): nu
 
 export function maybeRollDiscovery(pet: PetState, now: number, options: { force?: boolean; rng?: () => number; ambientFrequency?: AmbientFrequency } = {}): { pet: PetState; created: boolean } {
   const state = sanitizeDiscoveryState(pet.discovery, now);
+  const rng = options.rng ?? Math.random;
   if (state.active && state.active.expiresAt <= now) return { pet: { ...pet, discovery: { ...state, active: null } }, created: false };
   if (state.active) return { pet: { ...pet, discovery: state }, created: false };
   const date = localDate(now);
@@ -71,11 +73,11 @@ export function maybeRollDiscovery(pet: PetState, now: number, options: { force?
   if (!options.force) {
     if (todayResolved.length >= MAX_RESOLVED_PER_DAY) return { pet: { ...pet, discovery: { ...state, resolvedToday: todayResolved } }, created: false };
     if (now - state.lastRolledAt < MIN_ROLL_GAP_MS) return { pet: { ...pet, discovery: state }, created: false };
-    if ((options.rng ?? Math.random)() > rollChance(pet, now, options.ambientFrequency ?? 'normal')) return { pet: { ...pet, discovery: { ...state, lastRolledAt: now } }, created: false };
+    if (!rollChance(rollChanceForPet(pet, now, options.ambientFrequency ?? 'normal'), rng)) return { pet: { ...pet, discovery: { ...state, lastRolledAt: now } }, created: false };
   }
   const pool = DISCOVERY_DEFS.filter((d) => !todayResolved.includes(d.id));
-  const def = pool[Math.floor((options.rng ?? Math.random)() * pool.length)] ?? DISCOVERY_DEFS[0];
-  const active: DiscoveryEntry = { id: def.id, date, kind: def.kind, label: def.label, shortText: def.shortText, relatedEpisodeId: def.episodeId, expiresAt: now + EXPIRE_MIN_MS + Math.floor((options.rng ?? Math.random)() * EXPIRE_SPAN_MS) };
+  const def = pickRandom(pool, rng) ?? DISCOVERY_DEFS[0];
+  const active: DiscoveryEntry = { id: def.id, date, kind: def.kind, label: def.label, shortText: def.shortText, relatedEpisodeId: def.episodeId, expiresAt: now + EXPIRE_MIN_MS + randomOffset(EXPIRE_SPAN_MS, rng) };
   return { pet: { ...pet, discovery: { active, resolvedToday: todayResolved, lastRolledAt: now } }, created: true };
 }
 

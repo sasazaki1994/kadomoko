@@ -3,7 +3,9 @@ import { localDateString } from './dailyTasks';
 import { DREAM_THEME_BY_ID, DREAM_THEME_IDS } from './data/dreams';
 import { appendEpisodeEntries } from './episodes';
 import { getDayPeriod, getSeason } from './lifeRhythm';
+import { randomOffset, rollChance } from './random';
 import { applyVitalDelta } from './vitals';
+import { finiteNumber, isRecord } from './validation';
 import type {
   AmbientFrequency,
   DreamFragment,
@@ -27,14 +29,6 @@ const MAX_FRAGMENT_TEXT = 60;
 
 const date = localDateString;
 
-function rec(v: unknown): v is Record<string, unknown> {
-  return !!v && typeof v === 'object' && !Array.isArray(v);
-}
-
-function num(v: unknown, fallback: number): number {
-  return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
-}
-
 export function isDreamThemeId(value: unknown): value is DreamThemeId {
   return typeof value === 'string' && (DREAM_THEME_IDS as readonly string[]).includes(value);
 }
@@ -48,7 +42,7 @@ export function createEmptyDreamState(now: number): DreamState {
 }
 
 function sanitizeFragment(raw: unknown): DreamFragment | null {
-  if (!rec(raw) || !isDreamThemeId(raw.themeId)) return null;
+  if (!isRecord(raw) || !isDreamThemeId(raw.themeId)) return null;
   const def = DREAM_THEME_BY_ID[raw.themeId];
   return {
     themeId: raw.themeId,
@@ -61,11 +55,11 @@ function sanitizeFragment(raw: unknown): DreamFragment | null {
 
 export function sanitizeDreamState(raw: unknown, now: number): DreamState {
   const today = date(now);
-  if (!rec(raw)) return createEmptyDreamState(now);
+  if (!isRecord(raw)) return createEmptyDreamState(now);
 
   let brewing: DreamState['brewing'] = null;
-  if (rec(raw.brewing) && isDreamThemeId(raw.brewing.themeId)) {
-    brewing = { themeId: raw.brewing.themeId, startedAt: num(raw.brewing.startedAt, now) };
+  if (isRecord(raw.brewing) && isDreamThemeId(raw.brewing.themeId)) {
+    brewing = { themeId: raw.brewing.themeId, startedAt: finiteNumber(raw.brewing.startedAt, now) };
   }
 
   const fragments = (Array.isArray(raw.fragments) ? raw.fragments : []).flatMap((f) => {
@@ -76,9 +70,9 @@ export function sanitizeDreamState(raw: unknown, now: number): DreamState {
   // An expired pending fades quietly into the record as an unlistened trace
   // instead of disappearing; no penalty, no message.
   let pending: DreamState['pending'] = null;
-  if (rec(raw.pending)) {
+  if (isRecord(raw.pending)) {
     const fragment = sanitizeFragment(raw.pending);
-    const expiresAt = num(raw.pending.expiresAt, NaN);
+    const expiresAt = finiteNumber(raw.pending.expiresAt, NaN);
     if (fragment && fragment.date !== '' && Number.isFinite(expiresAt)) {
       if (expiresAt > now) pending = { ...fragment, expiresAt };
       else fragments.push(fragment);
@@ -90,9 +84,9 @@ export function sanitizeDreamState(raw: unknown, now: number): DreamState {
     brewing,
     pending,
     fragments: fragments.slice(-MAX_DREAM_FRAGMENTS),
-    lastDreamAt: Math.max(0, num(raw.lastDreamAt, 0)),
+    lastDreamAt: Math.max(0, finiteNumber(raw.lastDreamAt, 0)),
     date: today,
-    countToday: sameDay ? Math.max(0, Math.round(num(raw.countToday, 0))) : 0,
+    countToday: sameDay ? Math.max(0, Math.round(finiteNumber(raw.countToday, 0))) : 0,
   };
 }
 
@@ -153,7 +147,7 @@ export function progressDreams(pet: PetState, now: number, options: DreamProgres
       mood: def.mood,
       text: def.fragmentText,
       listened: false,
-      expiresAt: now + PENDING_MIN_MS + Math.floor(rng() * PENDING_SPAN_MS),
+      expiresAt: now + PENDING_MIN_MS + randomOffset(PENDING_SPAN_MS, rng),
     };
     const next: DreamState = {
       ...state,
@@ -171,7 +165,7 @@ export function progressDreams(pet: PetState, now: number, options: DreamProgres
     !state.pending &&
     state.countToday < MAX_DREAMS_PER_DAY &&
     now - state.lastDreamAt >= MIN_DREAM_GAP_MS &&
-    rng() < BREW_CHANCE[options.ambientFrequency ?? 'normal']
+    rollChance(BREW_CHANCE[options.ambientFrequency ?? 'normal'], rng)
   ) {
     const themeId = pickDreamTheme(pet, now, rng);
     return { pet: { ...pet, dreams: { ...state, brewing: { themeId, startedAt: now } } }, surfaced: false };
