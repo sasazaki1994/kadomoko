@@ -9,6 +9,7 @@ import TinyPlayLayer from './components/TinyPlayLayer';
 import RecordPanel from './components/RecordPanel';
 import SeasonAmbient from './components/SeasonAmbient';
 import StatusPanel from './components/StatusPanel';
+import QuietMomentPanel from './components/QuietMomentPanel';
 import { BALANCE } from './game/data/balance';
 import { usePetStore } from './store/usePetStore';
 
@@ -23,6 +24,7 @@ export default function App() {
   const menuOpen = usePetStore((s) => s.menuOpen);
   const devPanelOpen = usePetStore((s) => s.devPanelOpen);
   const recordPanelOpen = usePetStore((s) => s.recordPanelOpen);
+  const quietMomentOpen = usePetStore((s) => s.quietMomentOpen);
   const activeDiscovery = usePetStore((s) => s.pet.discovery.active);
   const activeTinyPlay = usePetStore((s) => s.pet.tinyPlay.active);
   const dreams = usePetStore((s) => s.pet.dreams);
@@ -55,10 +57,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const expanded = panelOpen || devPanelOpen || menuOpen || recordPanelOpen;
+    const expanded = panelOpen || devPanelOpen || menuOpen || recordPanelOpen || quietMomentOpen;
     const size = expanded ? WINDOW_EXPANDED : WINDOW_NORMAL;
     void window.kadomoco?.setWindowSize(size, size);
-  }, [panelOpen, devPanelOpen, menuOpen, recordPanelOpen]);
+  }, [panelOpen, devPanelOpen, menuOpen, recordPanelOpen, quietMomentOpen]);
 
   if (!loaded) {
     return <div className="app-root" />;
@@ -72,15 +74,16 @@ export default function App() {
         setMenuOpen(!menuOpen);
       }}
     >
-      <SeasonAmbient hidden={menuOpen || panelOpen || recordPanelOpen || devPanelOpen} />
-      {!menuOpen && !panelOpen && !recordPanelOpen && !devPanelOpen && <DiscoveryHint discovery={activeDiscovery} />}
-      {!menuOpen && !panelOpen && !recordPanelOpen && !devPanelOpen && <DreamHint dreams={dreams} />}
+      <SeasonAmbient hidden={menuOpen || panelOpen || recordPanelOpen || devPanelOpen || quietMomentOpen} />
+      {!menuOpen && !panelOpen && !recordPanelOpen && !devPanelOpen && !quietMomentOpen && <DiscoveryHint discovery={activeDiscovery} />}
+      {!menuOpen && !panelOpen && !recordPanelOpen && !devPanelOpen && !quietMomentOpen && <DreamHint dreams={dreams} />}
       <SpeechBubble />
-      <TinyPlayLayer active={activeTinyPlay} hidden={menuOpen || panelOpen || recordPanelOpen || devPanelOpen} />
+      <TinyPlayLayer active={activeTinyPlay} hidden={menuOpen || panelOpen || recordPanelOpen || devPanelOpen || quietMomentOpen} />
       <PetCharacter />
       {menuOpen && <PetMenu />}
       {panelOpen && <StatusPanel />}
       {recordPanelOpen && <RecordPanel />}
+      {quietMomentOpen && <QuietMomentPanel />}
       {isDevMode && devPanelOpen && <DevToolsPanel />}
       {isDevMode && (
         <button

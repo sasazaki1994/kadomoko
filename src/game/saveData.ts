@@ -2,6 +2,7 @@ import { createEmptyDreamState, sanitizeDreamState } from './dreams';
 import { sanitizeEpisodeEntries } from './episodes';
 import { createEmptySignalState, sanitizeSignalState } from './signals';
 import { createEmptyTinyPlayState, sanitizeTinyPlayState } from './tinyPlays';
+import { createEmptyQuietMomentState, sanitizeQuietMomentState } from './quietMoments';
 import { createEmptyDiscoveryState, sanitizeDiscoveryState } from './discoveries';
 import { DEFAULT_REACTION_IDS } from './data/reactions';
 import { localDateString, rollDailyTasks } from './dailyTasks';
@@ -26,7 +27,7 @@ import type {
   WeeklyReflection,
 } from './types';
 
-export const CURRENT_SAVE_VERSION = 7;
+export const CURRENT_SAVE_VERSION = 8;
 
 export const DEFAULT_SETTINGS: SaveSettings = {
   alwaysOnTop: false,
@@ -65,6 +66,7 @@ export function createInitialPetState(now: number): PetState {
     signals: createEmptySignalState(now),
     tinyPlay: createEmptyTinyPlayState(now),
     dreams: createEmptyDreamState(now),
+    quietMoments: createEmptyQuietMomentState(now),
   };
 }
 
@@ -275,6 +277,7 @@ function migrationDefaults(version: number): Record<string, unknown> {
   if (version <= 4) Object.assign(defaults, { discovery: createEmptyDiscoveryState(now) });
   if (version <= 5) Object.assign(defaults, { signals: createEmptySignalState(now), tinyPlay: createEmptyTinyPlayState(now) });
   if (version <= 6) Object.assign(defaults, { dreams: createEmptyDreamState(now) });
+  if (version <= 7) Object.assign(defaults, { quietMoments: createEmptyQuietMomentState(now) });
   return defaults;
 }
 
@@ -330,6 +333,7 @@ function sanitizeCurrentVersionSave(raw: unknown, now: number): SaveData | null 
     signals: sanitizeSignalState(rawPet.signals, now),
     tinyPlay: sanitizeTinyPlayState(rawPet.tinyPlay, now),
     dreams: sanitizeDreamState(rawPet.dreams, now),
+    quietMoments: sanitizeQuietMomentState(rawPet.quietMoments, now),
   };
   return {
     version: CURRENT_SAVE_VERSION,

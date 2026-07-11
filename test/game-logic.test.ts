@@ -24,6 +24,13 @@ import { deriveBaseState } from '../src/game/stateMachine';
 import { progressTime } from '../src/game/timeProgress';
 import type { CareStats, EpisodeId, PetState } from '../src/game/types';
 import { applyVitalDelta, clampVital } from '../src/game/vitals';
+import {
+  completeQuietMoment,
+  createEmptyQuietMomentState,
+  getQuietMomentRewardStatus,
+  QUIET_MOMENT_COOLDOWN_MS,
+  sanitizeQuietMomentState,
+} from '../src/game/quietMoments';
 
 const NOW = new Date('2026-07-09T09:00:00Z').getTime();
 
@@ -835,4 +842,62 @@ test('look_together and tidy_habitat become reachable through unlocked props', (
   const tidied = performContextAction(petWithoutDailyTasks({ vitals, unlockedPropIds: ['small_cloth'] }), 'tidy_habitat', NOW + 10_000);
   assert.equal(tidied.ok, true);
   assert.equal(tidied.pet.vitals.mood, 74);
+});
+
+test('quiet moments give a small capped reward with a gentle cooldown', () => {
+  const base = pet({ vitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 10 } });
+  const first = completeQuietMoment(base, NOW);
+  assert.equal(first.rewarded, true);
+  assert.equal(first.pet.vitals.mood, 74);
+  assert.equal(first.pet.vitals.affection, 11);
+  assert.equal(first.pet.exp, 2);
+  assert.equal(first.pet.quietMoments.completedToday, 1);
+
+  const tooSoon = completeQuietMoment(first.pet, NOW + QUIET_MOMENT_COOLDOWN_MS - 1);
+  assert.equal(tooSoon.rewarded, false);
+  assert.equal(tooSoon.pet, first.pet);
+  assert.equal(getQuietMomentRewardStatus(first.pet, NOW + 60_000).eligible, false);
+
+  const second = completeQuietMoment(first.pet, NOW + QUIET_MOMENT_COOLDOWN_MS);
+  const third = completeQuietMoment(second.pet, NOW + QUIET_MOMENT_COOLDOWN_MS * 2);
+  assert.equal(third.pet.quietMoments.completedToday, 3);
+  const capped = completeQuietMoment(third.pet, NOW + QUIET_MOMENT_COOLDOWN_MS * 3);
+  assert.equal(capped.rewarded, false);
+  assert.equal(getQuietMomentRewardStatus(third.pet, NOW + QUIET_MOMENT_COOLDOWN_MS * 3).remainingToday, 0);
+});
+
+test('quiet moment state sanitizes corruption and resets on a new local day', () => {
+  assert.deepEqual(createEmptyQuietMomentState(NOW), {
+    date: localDateString(NOW),
+    completedToday: 0,
+    lastCompletedAt: 0,
+  });
+  const clean = sanitizeQuietMomentState({
+    date: localDateString(NOW),
+    completedToday: 99,
+    lastCompletedAt: -10,
+  }, NOW);
+  assert.equal(clean.completedToday, 3);
+  assert.equal(clean.lastCompletedAt, 0);
+
+  const nextDay = NOW + 24 * 60 * 60_000;
+  const reset = sanitizeQuietMomentState({
+    date: localDateString(NOW),
+    completedToday: 2,
+    lastCompletedAt: NOW,
+  }, nextDay);
+  assert.equal(reset.completedToday, 0);
+  assert.equal(reset.lastCompletedAt, NOW);
+});
+
+test('v8 migration adds quiet moments without losing pet data', () => {
+  const migrated = sanitizeSave({
+    version: 7,
+    pet: { ...createInitialPetState(NOW), vitals: { hunger: 31, mood: 42, sleepiness: 53, affection: 64 } },
+    settings: {},
+    lastLaunchedAt: NOW,
+  }, NOW);
+  assert.equal(migrated.version, CURRENT_SAVE_VERSION);
+  assert.deepEqual(migrated.pet.vitals, { hunger: 31, mood: 42, sleepiness: 53, affection: 64 });
+  assert.deepEqual(migrated.pet.quietMoments, createEmptyQuietMomentState(NOW));
 });

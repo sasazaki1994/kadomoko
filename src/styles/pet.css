@@ -524,6 +524,146 @@
   opacity: 0.6;
 }
 
+/* --- quiet breathing moment --- */
+.quiet-moment-panel {
+  position: absolute;
+  inset: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(112, 103, 129, 0.28);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(237, 232, 248, 0.98), rgba(255, 250, 242, 0.97) 64%);
+  box-shadow: 0 8px 24px rgba(54, 47, 66, 0.18);
+  color: #554a46;
+  z-index: 25;
+}
+
+.quiet-moment-header {
+  border-bottom-color: rgba(112, 103, 129, 0.14);
+}
+
+.quiet-moment-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  padding: 13px 12px 9px;
+  text-align: center;
+}
+
+.breath-orb {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+}
+
+.breath-orb span {
+  display: block;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(132, 119, 166, 0.38);
+  border-radius: 999px;
+  background: radial-gradient(circle at 42% 36%, rgba(255, 255, 255, 0.96), rgba(196, 181, 230, 0.72));
+  box-shadow: 0 0 18px rgba(168, 151, 207, 0.34);
+  animation: quiet-breathe 8s ease-in-out infinite;
+}
+
+.breath-orb.is-done span {
+  animation: quiet-settle 1.2s ease-out forwards;
+}
+
+.breath-guide {
+  min-height: 22px;
+  margin-top: 2px;
+  color: #665b72;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.breath-counter {
+  margin-top: 2px;
+  color: #877c8e;
+  font-size: 10px;
+}
+
+.breath-dots {
+  display: flex;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.breath-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(132, 119, 166, 0.18);
+  transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.breath-dots span.current {
+  background: rgba(132, 119, 166, 0.52);
+  transform: scale(1.25);
+}
+
+.breath-dots span.complete {
+  background: rgba(132, 119, 166, 0.76);
+}
+
+.quiet-moment-note {
+  min-height: 28px;
+  margin-top: 8px;
+  color: #786d75;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.quiet-moment-finish,
+.quiet-moment-skip {
+  margin-top: auto;
+  padding: 3px 10px;
+  border: 1px solid rgba(112, 103, 129, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 253, 248, 0.72);
+  color: #665b72;
+  font: inherit;
+  cursor: pointer;
+}
+
+.quiet-moment-finish:hover,
+.quiet-moment-skip:hover {
+  background: rgba(226, 218, 242, 0.7);
+}
+
+.quiet-moment-skip {
+  border-color: transparent;
+  background: transparent;
+  color: #998f99;
+  font-size: 9px;
+}
+
+@keyframes quiet-breathe {
+  0%, 100% { opacity: 0.72; transform: scale(0.72); }
+  43.75% { opacity: 1; transform: scale(1.35); }
+  87.5% { opacity: 0.72; transform: scale(0.72); }
+}
+
+@keyframes quiet-settle {
+  from { opacity: 0.72; transform: scale(0.72); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breath-orb span {
+    animation: none;
+  }
+}
+
 /* --- seasonal ambient motes (decorative, never interactive) --- */
 .season-ambient {
   position: absolute;

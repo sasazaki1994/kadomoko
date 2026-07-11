@@ -18,6 +18,7 @@ export default function PetMenu() {
   const showBubble = usePetStore((s) => s.showBubble);
   const togglePanel = usePetStore((s) => s.togglePanel);
   const toggleRecordPanel = usePetStore((s) => s.toggleRecordPanel);
+  const openQuietMoment = usePetStore((s) => s.openQuietMoment);
   const toggleAlwaysOnTop = usePetStore((s) => s.toggleAlwaysOnTop);
   const setMenuOpen = usePetStore((s) => s.setMenuOpen);
   const quitApp = usePetStore((s) => s.quitApp);
@@ -78,6 +79,9 @@ export default function PetMenu() {
           </>
         ) : null}
         <hr />
+        <button title="カドモコと3回、ゆっくり呼吸する" onClick={openQuietMoment}>
+          いっしょに深呼吸
+        </button>
         <button
           title="ステータスと設定をひとつのパネルで表示"
           onClick={() => {
