@@ -463,6 +463,67 @@
 @keyframes tiny-spin { to { transform: rotate(360deg); } }
 @keyframes tiny-parade { 0% { transform: translate(8px, 46px); } 50% { transform: translate(72px, 34px); } 100% { transform: translate(8px, 46px); } }
 
+/* --- dream hints (decorative, never interactive) --- */
+.dream-hint {
+  position: absolute;
+  left: 16px;
+  bottom: 96px;
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.dream-hint .dream-mote {
+  position: absolute;
+  left: 8px;
+  top: 10px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(196, 181, 230, 0.85);
+  box-shadow: 0 0 7px rgba(196, 181, 230, 0.7);
+  animation: dream-drift 4.5s ease-in-out infinite;
+}
+
+.dream-hint .dream-crescent {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  box-shadow: inset 3px -2px 0 0 rgba(214, 200, 240, 0.9);
+  animation: dream-glow 3.2s ease-in-out infinite;
+}
+
+.dream-warm .dream-crescent { box-shadow: inset 3px -2px 0 0 rgba(242, 210, 170, 0.9); }
+.dream-curious .dream-crescent { box-shadow: inset 3px -2px 0 0 rgba(170, 214, 236, 0.9); }
+
+@keyframes dream-drift {
+  0%, 100% { opacity: 0.3; transform: translate(0, 0) scale(0.9); }
+  50% { opacity: 0.9; transform: translate(2px, -5px) scale(1.1); }
+}
+
+@keyframes dream-glow {
+  0%, 100% { opacity: 0.45; transform: rotate(-12deg) scale(0.95); }
+  50% { opacity: 0.95; transform: rotate(-12deg) scale(1.08); }
+}
+
+.dream-fragment-list {
+  margin: 0;
+  padding-left: 1.1em;
+}
+
+.dream-fragment-list li {
+  margin-bottom: 3px;
+  line-height: 1.35;
+}
+
+.dream-fragment-list li.faded {
+  opacity: 0.6;
+}
+
 /* --- seasonal ambient motes (decorative, never interactive) --- */
 .season-ambient {
   position: absolute;

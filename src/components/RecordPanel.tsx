@@ -1,5 +1,6 @@
 import { buildRelationshipNote } from '../game/relationship';
 import { usePetStore } from '../store/usePetStore';
+import DreamFragmentList from './DreamFragmentList';
 import EpisodeList from './EpisodeList';
 import WeeklyReflectionPanel from './WeeklyReflectionPanel';
 
@@ -29,6 +30,10 @@ export default function RecordPanel() {
         <section>
           <div className="record-section-title">最近のこと</div>
           <EpisodeList episodes={pet.episodes} />
+        </section>
+        <section>
+          <div className="record-section-title">夢のかけら</div>
+          <DreamFragmentList fragments={pet.dreams.fragments} />
         </section>
         <section>
           <div className="record-section-title">週のふりかえり</div>

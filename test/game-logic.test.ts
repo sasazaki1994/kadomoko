@@ -13,6 +13,8 @@ import { getDayPeriod, getLifeRhythmHints, getSeason } from '../src/game/lifeRhy
 import { describeVitals } from '../src/game/observation';
 import { getRandomEventWeight, pickWeightedRandomEvent, type RandomEventContext } from '../src/game/randomEvents';
 import { dailyTaskCompletionBubble, getDailyTaskProgress, localDateString, rollDailyTasks } from '../src/game/dailyTasks';
+import { createEmptyDreamState, forceSurfaceDream, listenToDream, pickDreamTheme, progressDreams, sanitizeDreamState, MAX_DREAM_FRAGMENTS } from '../src/game/dreams';
+import { DREAM_THEME_BY_ID, DREAM_THEME_IDS } from '../src/game/data/dreams';
 import { applySecretSignalReaction, createEmptySignalState, detectSecretSignals, recordSignalInput, sanitizeSignalState } from '../src/game/signals';
 import { advanceTinyPlay, createEmptyTinyPlayState, maybeStartTinyPlay, sanitizeTinyPlayState } from '../src/game/tinyPlays';
 import { gainExp, LEVEL_REQUIREMENTS } from '../src/game/level';
@@ -687,6 +689,142 @@ test('signal and tiny play daily state track the local calendar date', () => {
   const nextDay = NOW + 24 * 60 * 60_000;
   assert.deepEqual(sanitizeSignalState({ date: localDateString(NOW), triggeredToday: ['tap_tap_pause'] }, nextDay).triggeredToday, []);
   assert.deepEqual(sanitizeTinyPlayState({ date: localDateString(NOW), completedToday: ['follow_dot'] }, nextDay).completedToday, []);
+});
+
+test('dream state sanitize drops invalid themes, expired pendings, and caps fragments', () => {
+  const fragment = { themeId: 'wide_meadow', date: '2026-07-08', mood: 'warm', text: 'どこまでも続く野原を、ころころ転がる夢。', listened: true };
+  const clean = sanitizeDreamState({
+    brewing: { themeId: 'bad', startedAt: NOW },
+    pending: { themeId: 'tiny_feast', date: '2026-07-09', mood: 'warm', text: 'x', listened: false, expiresAt: NOW - 1 },
+    fragments: [
+      { themeId: 'bad' },
+      fragment,
+      ...Array.from({ length: 20 }, () => fragment),
+    ],
+    lastDreamAt: NOW - 1_000,
+    date: localDateString(NOW),
+    countToday: 1.7,
+  }, NOW);
+  assert.equal(clean.brewing, null);
+  assert.equal(clean.pending, null);
+  assert.equal(clean.fragments.length, MAX_DREAM_FRAGMENTS);
+  assert.equal(clean.lastDreamAt, NOW - 1_000);
+  assert.equal(clean.countToday, 2);
+  assert.equal(sanitizeDreamState({ date: '2026-07-01', countToday: 2 }, NOW).countToday, 0);
+  assert.equal(sanitizeDreamState('garbage', NOW).pending, null);
+});
+
+test('dreams brew while sleeping, surface on wake, and fade quietly when unheard', () => {
+  const sleeping = pet({ currentAction: 'sleeping', dreams: { ...createEmptyDreamState(NOW), lastDreamAt: 0 } });
+  const brewed = progressDreams(sleeping, NOW + 60_000, { rng: () => 0 });
+  assert.ok(brewed.pet.dreams.brewing);
+  assert.equal(brewed.surfaced, false);
+
+  const stillAsleep = progressDreams(brewed.pet, NOW + 120_000, { rng: () => 0 });
+  assert.equal(stillAsleep.surfaced, false);
+  assert.ok(stillAsleep.pet.dreams.brewing);
+
+  const awake = { ...stillAsleep.pet, currentAction: 'none' as const };
+  const surfaced = progressDreams(awake, NOW + 180_000, { rng: () => 0 });
+  assert.equal(surfaced.surfaced, true);
+  assert.ok(surfaced.pet.dreams.pending);
+  assert.equal(surfaced.pet.dreams.brewing, null);
+  assert.equal(surfaced.pet.dreams.countToday, 1);
+
+  const expiresAt = surfaced.pet.dreams.pending!.expiresAt;
+  const faded = progressDreams(surfaced.pet, expiresAt + 1, { rng: () => 0 });
+  assert.equal(faded.pet.dreams.pending, null);
+  assert.equal(faded.pet.dreams.fragments.length, 1);
+  assert.equal(faded.pet.dreams.fragments[0].listened, false);
+});
+
+test('dreams respect the per-day cap, the gap, sleep requirement, and quiet frequency', () => {
+  const base = createEmptyDreamState(NOW);
+  const awake = pet({ currentAction: 'none', dreams: base });
+  assert.equal(progressDreams(awake, NOW + 60_000, { rng: () => 0 }).pet.dreams.brewing, null);
+
+  const capped = pet({ currentAction: 'sleeping', dreams: { ...base, countToday: 2 } });
+  assert.equal(progressDreams(capped, NOW + 60_000, { rng: () => 0 }).pet.dreams.brewing, null);
+
+  const recent = pet({ currentAction: 'sleeping', dreams: { ...base, lastDreamAt: NOW } });
+  assert.equal(progressDreams(recent, NOW + 60_000, { rng: () => 0 }).pet.dreams.brewing, null);
+
+  const quiet = pet({ currentAction: 'sleeping', dreams: base });
+  assert.equal(progressDreams(quiet, NOW + 60_000, { ambientFrequency: 'quiet', rng: () => 0.1 }).pet.dreams.brewing, null);
+  assert.ok(progressDreams(quiet, NOW + 60_000, { ambientFrequency: 'normal', rng: () => 0.1 }).pet.dreams.brewing);
+});
+
+test('listening to a dream stores a listened fragment, small rewards, and an episode', () => {
+  const surfaced = forceSurfaceDream(petWithoutDailyTasks({ vitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 10 } }), NOW, () => 0);
+  assert.ok(surfaced.dreams.pending);
+  const listened = listenToDream(surfaced, NOW + 1_000);
+  assert.equal(listened.ok, true);
+  assert.equal(listened.pet.dreams.pending, null);
+  assert.equal(listened.pet.dreams.fragments.at(-1)?.listened, true);
+  assert.equal(listened.pet.vitals.mood, 73);
+  assert.equal(listened.pet.vitals.affection, 11);
+  assert.equal(listened.pet.exp, 2);
+  assert.equal(listened.pet.episodes.length, 1);
+  assert.equal(listened.pet.episodes[0].trigger, 'dream');
+  assert.ok(!/(成功|失敗|スコア|実績|ランク)/.test(`${listened.bubble}`));
+
+  const sleeping = { ...surfaced, currentAction: 'sleeping' as const };
+  assert.equal(listenToDream(sleeping, NOW + 1_000).ok, false);
+  assert.equal(listenToDream(pet(), NOW).ok, false);
+});
+
+test('listen_dream context action appears for pending dreams and applies rewards once', () => {
+  const surfaced = forceSurfaceDream(petWithoutDailyTasks({ vitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 10 } }), NOW, () => 0);
+  assert.equal(getAvailableContextAction(surfaced, NOW + 1_000)?.id, 'listen_dream');
+  assert.notEqual(getAvailableContextAction({ ...surfaced, currentAction: 'sleeping' }, NOW + 1_000)?.id, 'listen_dream');
+
+  const acted = performContextAction(surfaced, 'listen_dream', NOW + 1_000);
+  assert.equal(acted.ok, true);
+  assert.equal(acted.pet.dreams.pending, null);
+  assert.equal(acted.pet.exp, 2);
+  assert.equal(acted.pet.vitals.mood, 73);
+  assert.equal(acted.pet.lastContextActionAt.listen_dream, NOW + 1_000);
+  assert.equal(getAvailableContextAction(acted.pet, NOW + 2_000)?.id, undefined);
+
+  const blocked = performContextAction(pet(), 'listen_dream', NOW);
+  assert.equal(blocked.ok, false);
+});
+
+test('dream themes are context-weighted and always valid', () => {
+  for (let i = 0; i < 10; i++) {
+    const themeId = pickDreamTheme(pet(), NOW, Math.random);
+    assert.ok(DREAM_THEME_IDS.includes(themeId));
+  }
+  assert.equal(pickDreamTheme(pet(), NOW, () => 0), DREAM_THEME_IDS[0]);
+  const hungry = pet({ vitals: { hunger: 20, mood: 50, sleepiness: 20, affection: 10 } });
+  // With hunger low, tiny_feast has the largest single weight bump.
+  const picks = new Set(Array.from({ length: 40 }, (_, i) => pickDreamTheme(hungry, NOW, () => (i + 0.5) / 40)));
+  assert.ok(picks.has('tiny_feast'));
+  for (const def of Object.values(DREAM_THEME_BY_ID)) {
+    assert.ok(def.fragmentText.length <= 60);
+    assert.ok(!/(成功|失敗|スコア|実績|ランク|レア)/.test(def.fragmentText + def.episodeText));
+  }
+});
+
+test('v7 migration adds and sanitizes dream state without losing pet data', () => {
+  const old = sanitizeSave({ version: 6, pet: { ...createInitialPetState(NOW), vitals: { hunger: 33, mood: 44, sleepiness: 55, affection: 66 } }, settings: {}, lastLaunchedAt: NOW }, NOW);
+  assert.equal(old.version, CURRENT_SAVE_VERSION);
+  assert.deepEqual(old.pet.vitals, { hunger: 33, mood: 44, sleepiness: 55, affection: 66 });
+  assert.deepEqual(old.pet.dreams, createEmptyDreamState(NOW));
+
+  const current = sanitizeSave({
+    version: CURRENT_SAVE_VERSION,
+    pet: { ...createInitialPetState(NOW), dreams: { pending: { themeId: 'bad' }, fragments: [{ themeId: 'gentle_rain', date: '2026-07-08' }], countToday: -3 } },
+    settings: {},
+    lastLaunchedAt: NOW,
+  }, NOW);
+  assert.equal(current.pet.dreams.pending, null);
+  assert.equal(current.pet.dreams.fragments.length, 1);
+  assert.equal(current.pet.dreams.fragments[0].text, DREAM_THEME_BY_ID.gentle_rain.fragmentText);
+  assert.equal(current.pet.dreams.countToday, 0);
+
+  const backup = { ...current, pet: { ...current.pet, vitals: { hunger: 22, mood: 44, sleepiness: 55, affection: 66 } } };
+  assert.equal(recoverSave({ version: 999 }, backup, NOW).source, 'backup');
 });
 
 test('look_together and tidy_habitat become reachable through unlocked props', () => {

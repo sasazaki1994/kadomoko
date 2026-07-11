@@ -227,3 +227,39 @@ Feature: KadoMoco desktop pet
     When the app loads the save
     Then signal and tiny play state are initialized safely
     And existing pet data is preserved
+
+  Scenario: A dream forms quietly while the pet sleeps
+    Given the pet is sleeping
+    When enough quiet time passes
+    Then a dream may start forming without waking the pet
+    And no notification interrupts the user
+
+  Scenario: Waking surfaces a dream fragment to listen to
+    Given a dream formed during sleep
+    When the pet wakes up
+    Then a small dream cue appears near the pet
+    And the context action "夢のはなしを聞く" becomes available
+
+  Scenario: Listening to a dream stores a small memory
+    Given a dream fragment is pending
+    When the user selects "夢のはなしを聞く"
+    Then a short quiet bubble is shown
+    And the fragment is stored in the dream record as listened
+    And a short non-judging episode may be recorded
+
+  Scenario: Unheard dreams fade without penalty
+    Given a dream fragment is pending
+    When the fragment expires before being listened to
+    Then it fades quietly into the dream record
+    And no negative message or penalty is shown
+
+  Scenario: Dreams are rare and rate limited
+    Given dreams already happened twice today
+    When the pet sleeps again
+    Then no further dream forms that day
+
+  Scenario: Dream state is safely migrated
+    Given an older save file exists
+    When the app loads the save
+    Then dream state is initialized safely
+    And existing pet data is preserved

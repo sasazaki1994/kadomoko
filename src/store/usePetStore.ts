@@ -10,6 +10,7 @@ import {
   SPEECH_PACK_EXTRA,
 } from '../game/data/speechMessages';
 import { maybeRollDiscovery, resolveDiscovery } from '../game/discoveries';
+import { createEmptyDreamState, forceSurfaceDream, progressDreams } from '../game/dreams';
 import { applySecretSignalReaction, createEmptySignalState, recordSignalInput } from '../game/signals';
 import { advanceTinyPlay, interactWithTinyPlay, maybeStartTinyPlay, createEmptyTinyPlayState } from '../game/tinyPlays';
 import { getLifeRhythmHints } from '../game/lifeRhythm';
@@ -105,6 +106,8 @@ export type PetStore = {
   devForceTinyPlay: () => void;
   devEndTinyPlay: () => void;
   devResetSignals: () => void;
+  devForceDream: () => void;
+  devClearDreams: () => void;
 };
 
 let tempStateTimer: ReturnType<typeof setTimeout> | null = null;
@@ -243,6 +246,13 @@ export const usePetStore = create<PetStore>((set, get) => {
       if (tinyAdvanced.ended && tinyAdvanced.bubble) showBubble(tinyAdvanced.bubble);
       if (!tinyAdvanced.ended) next = maybeStartTinyPlay(next, now, { ambientFrequency: settings.ambientFrequency }).pet;
 
+      const dreamStep = progressDreams(next, now, { ambientFrequency: settings.ambientFrequency });
+      next = dreamStep.pet;
+      if (dreamStep.surfaced) {
+        showTempState('curious', 'gaze', 3_000);
+        showBubble('……ゆめ、みてた');
+      }
+
       if (event) {
         next = { ...next, lastRandomEventAt: now };
         playRandomEvent(event);
@@ -267,9 +277,11 @@ export const usePetStore = create<PetStore>((set, get) => {
     catchUpOffline: (fromResume = false) => {
       const now = Date.now();
       const result = progressTime(get().pet, now, { online: false });
-      applyPetUpdate(result.pet, { leveledUp: result.leveledUp, newLevel: result.newLevel });
+      // Surface a brewed dream if the pet woke while the app was away.
+      const dreamStep = progressDreams(result.pet, now, { ambientFrequency: get().settings.ambientFrequency });
+      applyPetUpdate(dreamStep.pet, { leveledUp: result.leveledUp, newLevel: result.newLevel });
       if (!result.leveledUp) showDailyTaskBubble(result.completedTaskIds);
-      recordSignal(result.pet, { input: 'click', at: now, detail: 'resume' });
+      recordSignal(dreamStep.pet, { input: 'click', at: now, detail: 'resume' });
       if (fromResume && now - lastResumeReactionAt >= RESUME_REACTION_MIN_GAP_MS) {
         lastResumeReactionAt = now;
         showTempState('curious', 'gaze', 3_000);
@@ -454,6 +466,8 @@ export const usePetStore = create<PetStore>((set, get) => {
     },
 
     devForceSignal: () => reactToSignal(get().pet, 'tap_tap_pause', Date.now()),
+    devForceDream: () => applyPetUpdate(forceSurfaceDream(get().pet, Date.now())),
+    devClearDreams: () => applyPetUpdate({ ...get().pet, dreams: createEmptyDreamState(Date.now()) }),
     devForceTinyPlay: () => applyPetUpdate(maybeStartTinyPlay(get().pet, Date.now(), { force: true, rng: () => 0 }).pet),
     devEndTinyPlay: () => { const pet = get().pet; applyPetUpdate({ ...pet, tinyPlay: { ...pet.tinyPlay, active: null } }); },
     devResetSignals: () => applyPetUpdate({ ...get().pet, signals: createEmptySignalState(Date.now()), tinyPlay: createEmptyTinyPlayState(Date.now()) }),

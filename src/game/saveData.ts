@@ -1,3 +1,4 @@
+import { createEmptyDreamState, sanitizeDreamState } from './dreams';
 import { sanitizeEpisodeEntries } from './episodes';
 import { createEmptySignalState, sanitizeSignalState } from './signals';
 import { createEmptyTinyPlayState, sanitizeTinyPlayState } from './tinyPlays';
@@ -25,7 +26,7 @@ import type {
   WeeklyReflection,
 } from './types';
 
-export const CURRENT_SAVE_VERSION = 6;
+export const CURRENT_SAVE_VERSION = 7;
 
 export const DEFAULT_SETTINGS: SaveSettings = {
   alwaysOnTop: false,
@@ -63,6 +64,7 @@ export function createInitialPetState(now: number): PetState {
     discovery: createEmptyDiscoveryState(now),
     signals: createEmptySignalState(now),
     tinyPlay: createEmptyTinyPlayState(now),
+    dreams: createEmptyDreamState(now),
   };
 }
 
@@ -191,7 +193,7 @@ function sanitizeCareStats(raw: unknown, fallback: PetState['careStats']): PetSt
   };
 }
 
-const CONTEXT_ACTION_IDS: readonly ContextActionId[] = ['give_space', 'wait_gently', 'look_together', 'stay_together', 'small_bite', 'tidy_habitat', 'inspect_edge'];
+const CONTEXT_ACTION_IDS: readonly ContextActionId[] = ['give_space', 'wait_gently', 'look_together', 'stay_together', 'small_bite', 'tidy_habitat', 'inspect_edge', 'listen_dream'];
 
 function sanitizeLastContextActionAt(raw: unknown): PetState['lastContextActionAt'] {
   if (!isRecord(raw)) return {};
@@ -272,6 +274,7 @@ function migrationDefaults(version: number): Record<string, unknown> {
   if (version <= 3) Object.assign(defaults, { episodes: [], weeklyReflections: [] });
   if (version <= 4) Object.assign(defaults, { discovery: createEmptyDiscoveryState(now) });
   if (version <= 5) Object.assign(defaults, { signals: createEmptySignalState(now), tinyPlay: createEmptyTinyPlayState(now) });
+  if (version <= 6) Object.assign(defaults, { dreams: createEmptyDreamState(now) });
   return defaults;
 }
 
@@ -326,6 +329,7 @@ function sanitizeCurrentVersionSave(raw: unknown, now: number): SaveData | null 
     discovery: sanitizeDiscoveryState(rawPet.discovery, now),
     signals: sanitizeSignalState(rawPet.signals, now),
     tinyPlay: sanitizeTinyPlayState(rawPet.tinyPlay, now),
+    dreams: sanitizeDreamState(rawPet.dreams, now),
   };
   return {
     version: CURRENT_SAVE_VERSION,
