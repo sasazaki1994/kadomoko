@@ -12,6 +12,7 @@ import { BALANCE } from '../src/game/data/balance';
 import { getDayPeriod, getLifeRhythmHints, getSeason } from '../src/game/lifeRhythm';
 import { describeVitals } from '../src/game/observation';
 import { getRandomEventWeight, pickWeightedRandomEvent, type RandomEventContext } from '../src/game/randomEvents';
+import { pickRandom, randomOffset, rollChance } from '../src/game/random';
 import { dailyTaskCompletionBubble, getDailyTaskProgress, localDateString, rollDailyTasks } from '../src/game/dailyTasks';
 import { createEmptyDreamState, forceSurfaceDream, listenToDream, pickDreamTheme, progressDreams, sanitizeDreamState, MAX_DREAM_FRAGMENTS } from '../src/game/dreams';
 import { DREAM_THEME_BY_ID, DREAM_THEME_IDS } from '../src/game/data/dreams';
@@ -26,6 +27,15 @@ import type { CareStats, EpisodeId, PetState } from '../src/game/types';
 import { applyVitalDelta, clampVital } from '../src/game/vitals';
 
 const NOW = new Date('2026-07-09T09:00:00Z').getTime();
+
+test('random helpers handle empty pools and injected boundary values', () => {
+  assert.equal(pickRandom([], () => 0), undefined);
+  assert.equal(pickRandom(['first', 'last'], () => -1), 'first');
+  assert.equal(pickRandom(['first', 'last'], () => 1), 'last');
+  assert.equal(randomOffset(10, () => 1), 9);
+  assert.equal(rollChance(0.5, () => 0.49), true);
+  assert.equal(rollChance(0.5, () => 0.5), false);
+});
 
 function pet(overrides: Partial<PetState> = {}): PetState {
   const base = createInitialPetState(NOW);
@@ -428,10 +438,11 @@ test('context actions apply effects safely and preserve sleeping give_space', ()
   assert.equal(spaced.pet.lastContextActionAt.give_space, NOW + 10_000);
 
   const base = petWithoutDailyTasks({ vitals: { hunger: 20, mood: 70, sleepiness: 20, affection: 10 } });
-  const bite = performContextAction(base, 'small_bite', NOW + 10_000);
+  const bite = performContextAction(base, 'small_bite', NOW + 10_000, () => 0);
   const feed = performCareAction(base, 'feed', NOW + 10_000);
   assert.ok(bite.pet.vitals.hunger - base.vitals.hunger < feed.pet.vitals.hunger - base.vitals.hunger);
   assert.equal(bite.pet.exp, 2);
+  assert.equal(bite.bubble, '少しだけ');
 });
 
 test('context action exp can level up consistently', () => {
@@ -648,6 +659,11 @@ test('signal reactions are small, clamped, quiet, and can return episode ids', (
   assert.equal(res.pet.currentAction, 'sleeping');
   assert.equal(res.episodeId, 'answered_secret_signal');
   assert.ok(!/(成功|失敗|スコア|実績|コンボ)/.test(`${res.bubble}`));
+
+  const withEpisode = applySecretSignalReaction(base, 'sleepy_respect', NOW, () => 0);
+  const withoutEpisode = applySecretSignalReaction(base, 'sleepy_respect', NOW, () => 1);
+  assert.equal(withEpisode.pet.episodes.length, 1);
+  assert.equal(withoutEpisode.pet.episodes.length, 0);
 });
 
 test('tiny plays start, avoid duplicates, end naturally, and sanitize ids', () => {
@@ -656,9 +672,10 @@ test('tiny plays start, avoid duplicates, end naturally, and sanitize ids', () =
   assert.equal(started.started, true);
   assert.ok(started.pet.tinyPlay.active);
   assert.equal(maybeStartTinyPlay(started.pet, NOW + 100, { force: true }).started, false);
-  const ended = advanceTinyPlay(started.pet, NOW + 10_000);
+  const ended = advanceTinyPlay(started.pet, NOW + 10_000, () => 0);
   assert.equal(ended.ended, true);
   assert.equal(ended.pet.tinyPlay.completedToday.length, 1);
+  assert.equal(ended.pet.episodes.length, 1);
   assert.equal(advanceTinyPlay(ended.pet, NOW + 11_000).pet.tinyPlay.completedToday.length, 1);
   assert.deepEqual(sanitizeTinyPlayState({ date: localDateString(NOW), completedToday: ['follow_dot', 'bad', 'follow_dot'], active: { id: 'bad' } }, NOW).completedToday, ['follow_dot']);
 });

@@ -2,6 +2,7 @@ import { grantExp } from './actions';
 import { resolveDiscovery } from './discoveries';
 import { listenToDream } from './dreams';
 import { CONTEXT_ACTIONS, CONTEXT_ACTION_BY_ID } from './data/contextActions';
+import { pickRandom, type RandomSource } from './random';
 import { deriveBaseState } from './stateMachine';
 import { applyVitalDelta } from './vitals';
 import type { ContextActionDef, ContextActionId, ContextActionResult, PetState, PetVitals } from './types';
@@ -55,7 +56,7 @@ function isConditionMet(pet: PetState, actionId: ContextActionId): boolean {
     case 'stay_together':
       return pet.vitals.mood >= 80 || pet.vitals.affection >= 50 || pet.personality === 'calm' || pet.personality === 'sweet';
     case 'small_bite':
-      return pet.vitals.hunger < 30 && pet.vitals.hunger < 90;
+      return pet.vitals.hunger < 30;
     case 'tidy_habitat':
       return hasPlacedHabitatItems(pet);
     case 'inspect_edge':
@@ -107,7 +108,12 @@ function deltaFor(actionId: ContextActionId): Partial<PetVitals> {
   }
 }
 
-export function performContextAction(pet: PetState, actionId: ContextActionId, now: number): ContextActionResult {
+export function performContextAction(
+  pet: PetState,
+  actionId: ContextActionId,
+  now: number,
+  rng: RandomSource = Math.random,
+): ContextActionResult {
   const def = CONTEXT_ACTION_BY_ID[actionId];
   if (!def || !isConditionMet(pet, actionId) || isOnCooldown(pet, def, now)) {
     return { pet, ok: false, actionId, leveledUp: false, bubble: 'ちょっと待って', tempState: 'reaction' };
@@ -150,7 +156,7 @@ export function performContextAction(pet: PetState, actionId: ContextActionId, n
     actionId,
     leveledUp: expGrant.leveledUp,
     newLevel: expGrant.leveledUp ? next.level : undefined,
-    bubble: pool[Math.floor(Math.random() * pool.length)],
+    bubble: pickRandom(pool, rng),
     tempState: actionId === 'small_bite' || actionId === 'inspect_edge' ? 'reaction' : machineState(next),
   };
 }

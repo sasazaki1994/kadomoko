@@ -5,6 +5,7 @@ import {
 } from './data/randomEvents';
 import { SEASON_EVENT_BOOST, SEASON_EVENT_TAGS } from './data/lifeRhythm';
 import { getLifeRhythmHints, getSeason } from './lifeRhythm';
+import { pickRandom } from './random';
 import type { DiscoveryEntry, EpisodeEntry, CurrentAction, DayPeriod, Personality, PetVitals, RandomEventDef, RandomEventTag, Season } from './types';
 
 export type RandomEventContext = {
@@ -105,5 +106,5 @@ export function maybeRollRandomEvent(
 }
 
 export function pickRandomEvent(rng: () => number = Math.random): RandomEventDef {
-  return RANDOM_EVENT_POOL[Math.floor(rng() * RANDOM_EVENT_POOL.length)];
+  return pickRandom(RANDOM_EVENT_POOL, rng) ?? RANDOM_EVENT_POOL[0];
 }

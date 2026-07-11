@@ -4,6 +4,7 @@ import {
   GOOD_MOOD_TASK_TARGET_MS,
   TOGETHER_TASK_TARGET_MS,
 } from './data/dailyTasks';
+import { randomOffset } from './random';
 import type { CareActionId, DailyTaskDef, DailyTaskId, DailyTasksState } from './types';
 
 export function localDateString(epochMs: number): string {
@@ -17,7 +18,7 @@ export function localDateString(epochMs: number): string {
 export function rollDailyTasks(date: string, rng: () => number = Math.random): DailyTasksState {
   const shuffled = [...DAILY_TASK_POOL];
   for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
+    const j = randomOffset(i + 1, rng);
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return {
