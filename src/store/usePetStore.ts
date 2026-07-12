@@ -30,6 +30,11 @@ import {
 import { dailyTaskCompletionBubble } from '../game/dailyTasks';
 import { progressTime } from '../game/timeProgress';
 import { completeQuietMoment as resolveQuietMoment } from '../game/quietMoments';
+import {
+  cancelFocusSession as stopFocusSession,
+  progressFocusSession as resolveFocusSessionProgress,
+  startFocusSession as beginFocusSession,
+} from '../game/focusSessions';
 import type {
   CareActionId,
   ContextActionId,
@@ -39,6 +44,7 @@ import type {
   Personality,
   RandomEventDef,
   SaveSettings,
+  FocusSessionDuration,
 } from '../game/types';
 
 const AMBIENT_SPEECH_CHANCE_PER_MINUTE = 0.08;
@@ -74,6 +80,7 @@ export type PetStore = {
   devPanelOpen: boolean;
   recordPanelOpen: boolean;
   quietMomentOpen: boolean;
+  focusSessionOpen: boolean;
   alwaysOnTop: boolean;
   settings: SaveSettings;
 
@@ -91,6 +98,11 @@ export type PetStore = {
   openQuietMoment: () => void;
   closeQuietMoment: () => void;
   completeQuietMoment: () => void;
+  openFocusSession: () => void;
+  closeFocusSession: () => void;
+  startFocusSession: (durationMinutes: FocusSessionDuration) => void;
+  cancelFocusSession: () => void;
+  progressFocusSession: () => void;
   toggleAlwaysOnTop: () => Promise<void>;
   quitApp: () => void;
   showBubble: (text: string, force?: boolean) => void;
@@ -197,6 +209,7 @@ export const usePetStore = create<PetStore>((set, get) => {
     devPanelOpen: false,
     recordPanelOpen: false,
     quietMomentOpen: false,
+    focusSessionOpen: false,
     alwaysOnTop: false,
     settings: { alwaysOnTop: false, volume: 50, statusDisplayMode: 'both', ambientFrequency: 'normal', bubbleFrequency: 'normal', reduceActivityWhenFullscreen: true },
 
@@ -209,13 +222,19 @@ export const usePetStore = create<PetStore>((set, get) => {
         now,
       ).save;
       const progressed = progressTime(save.pet, now, { online: false });
+      const focusStep = resolveFocusSessionProgress(progressed.pet, now);
       set({
         loaded: true,
-        pet: progressed.pet,
+        pet: focusStep.pet,
         alwaysOnTop: save.settings.alwaysOnTop,
         settings: save.settings,
       });
-      scheduleSave(progressed.pet);
+      scheduleSave(focusStep.pet);
+      if (focusStep.completed) {
+        if (focusStep.leveledUp) showTempState('levelUp', null);
+        else showTempState('reaction', 'gaze', 3_000);
+        if (focusStep.bubble) get().showBubble(focusStep.bubble, true);
+      }
     },
 
     tick: () => {
@@ -232,7 +251,8 @@ export const usePetStore = create<PetStore>((set, get) => {
         activeTogetherTimeMs: next.careStats.activeTogetherTimeMs,
         lastCareAt: next.lastCareAt,
       });
-      const event = maybeRollRandomEvent(now, next.lastRandomEventAt, {
+      const focusActive = next.focusSessions.active !== null;
+      const event = focusActive ? null : maybeRollRandomEvent(now, next.lastRandomEventAt, {
         now,
         vitals: next.vitals,
         personality: next.personality,
@@ -245,17 +265,19 @@ export const usePetStore = create<PetStore>((set, get) => {
         episodes: next.episodes,
         activeDiscovery: next.discovery.active,
       }, Math.random, AMBIENT_MULTIPLIER[settings.ambientFrequency]);
-      const discoveryRoll = maybeRollDiscovery(next, now, { ambientFrequency: settings.ambientFrequency });
+      const discoveryRoll = focusActive
+        ? { pet: next }
+        : maybeRollDiscovery(next, now, { ambientFrequency: settings.ambientFrequency });
       next = discoveryRoll.pet;
       const tinyAdvanced = advanceTinyPlay(next, now);
       next = tinyAdvanced.pet;
       if (tinyAdvanced.ended && tinyAdvanced.effect) showTempState('reaction', tinyAdvanced.effect as CharacterEffect, 2_500);
       if (tinyAdvanced.ended && tinyAdvanced.bubble) showBubble(tinyAdvanced.bubble);
-      if (!tinyAdvanced.ended) next = maybeStartTinyPlay(next, now, { ambientFrequency: settings.ambientFrequency }).pet;
+      if (!tinyAdvanced.ended && !focusActive) next = maybeStartTinyPlay(next, now, { ambientFrequency: settings.ambientFrequency }).pet;
 
       const dreamStep = progressDreams(next, now, { ambientFrequency: settings.ambientFrequency });
       next = dreamStep.pet;
-      if (dreamStep.surfaced) {
+      if (dreamStep.surfaced && !focusActive) {
         showTempState('curious', 'gaze', 3_000);
         showBubble('……ゆめ、みてた');
       }
@@ -270,7 +292,7 @@ export const usePetStore = create<PetStore>((set, get) => {
       // 'quiet' too (matching catchUpOffline), and suppress only on 'off'.
       if (!result.leveledUp && settings.bubbleFrequency !== 'off') showDailyTaskBubble(result.completedTaskIds);
 
-      if (!event && rollChance(AMBIENT_SPEECH_CHANCE_PER_MINUTE * BUBBLE_MULTIPLIER[settings.bubbleFrequency])) {
+      if (!focusActive && !event && rollChance(AMBIENT_SPEECH_CHANCE_PER_MINUTE * BUBBLE_MULTIPLIER[settings.bubbleFrequency])) {
         const state = deriveBaseState(next.vitals, next.currentAction);
         const base = SPEECH_BY_STATE[state] ?? [];
         const extra = next.unlockedSpeechPackIds.includes('extra') ? SPEECH_PACK_EXTRA : [];
@@ -287,9 +309,14 @@ export const usePetStore = create<PetStore>((set, get) => {
       const result = progressTime(get().pet, now, { online: false });
       // Surface a brewed dream if the pet woke while the app was away.
       const dreamStep = progressDreams(result.pet, now, { ambientFrequency: get().settings.ambientFrequency });
-      applyPetUpdate(dreamStep.pet, { leveledUp: result.leveledUp, newLevel: result.newLevel });
+      const focusStep = resolveFocusSessionProgress(dreamStep.pet, now);
+      applyPetUpdate(focusStep.pet, {
+        leveledUp: focusStep.leveledUp || result.leveledUp,
+        newLevel: focusStep.newLevel ?? result.newLevel,
+      });
       if (!result.leveledUp) showDailyTaskBubble(result.completedTaskIds);
-      recordSignal(dreamStep.pet, { input: 'click', at: now, detail: 'resume' });
+      if (focusStep.completed && focusStep.bubble) get().showBubble(focusStep.bubble, true);
+      recordSignal(focusStep.pet, { input: 'click', at: now, detail: 'resume' });
       if (fromResume && now - lastResumeReactionAt >= RESUME_REACTION_MIN_GAP_MS) {
         lastResumeReactionAt = now;
         showTempState('curious', 'gaze', 3_000);
@@ -358,16 +385,17 @@ export const usePetStore = create<PetStore>((set, get) => {
       recordSignal(get().pet, { input: 'click', at: Date.now() });
     },
 
-    togglePanel: () => { const now = Date.now(); recordSignal(get().pet, { input: 'panel_open', at: now }); set((s) => ({ panelOpen: !s.panelOpen, menuOpen: false, recordPanelOpen: false, quietMomentOpen: false })); },
-    setMenuOpen: (open) => { if (open) recordSignal(get().pet, { input: 'menu_open', at: Date.now() }); set({ menuOpen: open, ...(open ? { quietMomentOpen: false } : {}) }); },
-    toggleDevPanel: () => set((s) => ({ devPanelOpen: !s.devPanelOpen, quietMomentOpen: false })),
-    toggleRecordPanel: () => set((s) => ({ recordPanelOpen: !s.recordPanelOpen, menuOpen: false, panelOpen: false, quietMomentOpen: false })),
+    togglePanel: () => { const now = Date.now(); recordSignal(get().pet, { input: 'panel_open', at: now }); set((s) => ({ panelOpen: !s.panelOpen, menuOpen: false, recordPanelOpen: false, quietMomentOpen: false, focusSessionOpen: false })); },
+    setMenuOpen: (open) => { if (open) recordSignal(get().pet, { input: 'menu_open', at: Date.now() }); set({ menuOpen: open, ...(open ? { quietMomentOpen: false, focusSessionOpen: false } : {}) }); },
+    toggleDevPanel: () => set((s) => ({ devPanelOpen: !s.devPanelOpen, quietMomentOpen: false, focusSessionOpen: false })),
+    toggleRecordPanel: () => set((s) => ({ recordPanelOpen: !s.recordPanelOpen, menuOpen: false, panelOpen: false, quietMomentOpen: false, focusSessionOpen: false })),
     openQuietMoment: () => set({
       quietMomentOpen: true,
       menuOpen: false,
       panelOpen: false,
       recordPanelOpen: false,
       devPanelOpen: false,
+      focusSessionOpen: false,
     }),
     closeQuietMoment: () => set({ quietMomentOpen: false }),
     completeQuietMoment: () => {
@@ -377,6 +405,39 @@ export const usePetStore = create<PetStore>((set, get) => {
         if (!result.leveledUp) showTempState('reaction', 'gaze', 3_000);
       }
       get().showBubble(result.bubble, true);
+    },
+    openFocusSession: () => set({
+      focusSessionOpen: true,
+      menuOpen: false,
+      panelOpen: false,
+      recordPanelOpen: false,
+      devPanelOpen: false,
+      quietMomentOpen: false,
+    }),
+    closeFocusSession: () => set({ focusSessionOpen: false }),
+    startFocusSession: (durationMinutes) => {
+      const result = beginFocusSession(get().pet, durationMinutes, Date.now());
+      if (!result.started) return;
+      applyPetUpdate(result.pet);
+      set({ focusSessionOpen: false });
+      showTempState('reaction', 'gaze', 2_500);
+      get().showBubble('ここにいるね', true);
+    },
+    cancelFocusSession: () => {
+      const next = stopFocusSession(get().pet, Date.now());
+      if (next !== get().pet) applyPetUpdate(next);
+      set({ focusSessionOpen: false });
+      get().showBubble('また、いつでも', true);
+    },
+    progressFocusSession: () => {
+      const result = resolveFocusSessionProgress(get().pet, Date.now());
+      if (!result.completed) {
+        if (result.pet !== get().pet) applyPetUpdate(result.pet);
+        return;
+      }
+      applyPetUpdate(result.pet, { leveledUp: result.leveledUp, newLevel: result.newLevel });
+      if (!result.leveledUp) showTempState('reaction', 'gaze', 3_000);
+      if (result.bubble) get().showBubble(result.bubble, true);
     },
 
     toggleAlwaysOnTop: async () => {

@@ -3,6 +3,7 @@ import { sanitizeEpisodeEntries } from './episodes';
 import { createEmptySignalState, sanitizeSignalState } from './signals';
 import { createEmptyTinyPlayState, sanitizeTinyPlayState } from './tinyPlays';
 import { createEmptyQuietMomentState, sanitizeQuietMomentState } from './quietMoments';
+import { createEmptyFocusSessionState, sanitizeFocusSessionState } from './focusSessions';
 import { createEmptyDiscoveryState, sanitizeDiscoveryState } from './discoveries';
 import { DEFAULT_REACTION_IDS } from './data/reactions';
 import { localDateString, rollDailyTasks } from './dailyTasks';
@@ -28,7 +29,7 @@ import type {
   WeeklyReflection,
 } from './types';
 
-export const CURRENT_SAVE_VERSION = 8;
+export const CURRENT_SAVE_VERSION = 9;
 
 export const DEFAULT_SETTINGS: SaveSettings = {
   alwaysOnTop: false,
@@ -68,6 +69,7 @@ export function createInitialPetState(now: number): PetState {
     tinyPlay: createEmptyTinyPlayState(now),
     dreams: createEmptyDreamState(now),
     quietMoments: createEmptyQuietMomentState(now),
+    focusSessions: createEmptyFocusSessionState(now),
   };
 }
 
@@ -271,6 +273,7 @@ function migrationDefaults(version: number): Record<string, unknown> {
   if (version <= 5) Object.assign(defaults, { signals: createEmptySignalState(now), tinyPlay: createEmptyTinyPlayState(now) });
   if (version <= 6) Object.assign(defaults, { dreams: createEmptyDreamState(now) });
   if (version <= 7) Object.assign(defaults, { quietMoments: createEmptyQuietMomentState(now) });
+  if (version <= 8) Object.assign(defaults, { focusSessions: createEmptyFocusSessionState(now) });
   return defaults;
 }
 
@@ -327,6 +330,7 @@ function sanitizeCurrentVersionSave(raw: unknown, now: number): SaveData | null 
     tinyPlay: sanitizeTinyPlayState(rawPet.tinyPlay, now),
     dreams: sanitizeDreamState(rawPet.dreams, now),
     quietMoments: sanitizeQuietMomentState(rawPet.quietMoments, now),
+    focusSessions: sanitizeFocusSessionState(rawPet.focusSessions, now),
   };
   return {
     version: CURRENT_SAVE_VERSION,

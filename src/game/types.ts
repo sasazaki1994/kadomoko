@@ -229,6 +229,7 @@ export type PetState = {
   tinyPlay: TinyPlayState;
   dreams: DreamState;
   quietMoments: QuietMomentState;
+  focusSessions: FocusSessionState;
 };
 
 export type DiscoveryId =
@@ -407,4 +408,20 @@ export type QuietMomentState = {
   date: string;
   completedToday: number;
   lastCompletedAt: number;
+};
+
+export type FocusSessionDuration = 10 | 25;
+
+export type FocusSession = {
+  startedAt: number;
+  endsAt: number;
+  durationMinutes: FocusSessionDuration;
+};
+
+export type FocusSessionState = {
+  /** Local date used for today's quiet completion and reward counts. */
+  date: string;
+  active: FocusSession | null;
+  completedToday: number;
+  rewardedToday: number;
 };

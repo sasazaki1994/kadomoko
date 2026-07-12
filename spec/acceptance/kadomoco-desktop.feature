@@ -263,3 +263,28 @@ Feature: KadoMoco desktop pet
     When the app loads the save
     Then dream state is initialized safely
     And existing pet data is preserved
+
+  Scenario: A quiet focus session can be started
+    Given the user opens the right-click menu
+    When the user starts a 10-minute or 25-minute focus session
+    Then a small remaining-time cue is shown near KadoMoco
+    And normal pet interactions remain available
+
+  Scenario: A focus session completes gently
+    Given a focus session is active
+    When its end time is reached
+    Then KadoMoco shows a short quiet reaction
+    And the session is counted once
+    And no disruptive notification is shown
+
+  Scenario: Ending focus early has no penalty
+    Given a focus session is active
+    When the user ends it before its end time
+    Then the session closes without a reward
+    And no failure or blaming message is shown
+
+  Scenario: Focus sessions survive restart safely
+    Given a focus session was active when the app closed
+    When the app restarts after its end time
+    Then the session completes exactly once
+    And older saves receive an empty focus session state without losing pet data
