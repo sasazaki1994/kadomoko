@@ -664,6 +664,206 @@
   }
 }
 
+/* --- quiet focus companion --- */
+.focus-session-badge {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transform: translateX(-50%);
+  padding: 3px 8px;
+  border: 1px solid rgba(126, 109, 86, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 253, 248, 0.82);
+  box-shadow: 0 2px 8px rgba(85, 74, 70, 0.1);
+  color: #75675e;
+  font: 600 10px/1.2 'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  backdrop-filter: blur(3px);
+}
+
+.focus-session-badge span {
+  color: #a58e73;
+  font-size: 13px;
+  animation: focus-pulse 3s ease-in-out infinite;
+}
+
+.focus-session-panel {
+  position: absolute;
+  inset: 6px;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(162, 137, 105, 0.42);
+  border-radius: 12px;
+  background: linear-gradient(160deg, rgba(255, 253, 248, 0.98), rgba(242, 234, 220, 0.98));
+  box-shadow: 0 4px 18px rgba(85, 74, 70, 0.18);
+}
+
+.focus-session-header {
+  border-bottom-color: rgba(162, 137, 105, 0.18);
+}
+
+.focus-session-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  padding: 13px 12px 10px;
+  text-align: center;
+}
+
+.focus-session-mark {
+  display: grid;
+  width: 50px;
+  height: 50px;
+  place-items: center;
+  color: #b29a7e;
+  font-size: 42px;
+  line-height: 1;
+  animation: focus-pulse 3s ease-in-out infinite;
+}
+
+.focus-session-lead {
+  margin: 5px 0 10px;
+  color: #655951;
+  font-size: 11px;
+}
+
+.focus-session-presets {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.focus-session-presets button {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 4px;
+  border: 1px solid rgba(162, 137, 105, 0.28);
+  border-radius: 9px;
+  background: rgba(255, 253, 248, 0.72);
+  color: #655951;
+  font: inherit;
+  cursor: pointer;
+}
+
+.focus-session-presets button:hover {
+  border-color: rgba(162, 137, 105, 0.52);
+  background: rgba(255, 250, 240, 0.96);
+}
+
+.focus-session-presets strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.focus-session-presets span {
+  color: #93857b;
+  font-size: 8px;
+}
+
+.focus-session-note {
+  margin-top: auto;
+  color: #8d8078;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.focus-session-orbit {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  margin-top: 4px;
+  border: 1px solid rgba(162, 137, 105, 0.2);
+  border-radius: 999px;
+}
+
+.focus-session-orbit::before {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  border-radius: inherit;
+  background: radial-gradient(circle at 42% 36%, rgba(255, 255, 255, 0.96), rgba(224, 207, 183, 0.7));
+  box-shadow: 0 0 16px rgba(162, 137, 105, 0.18);
+}
+
+.focus-session-orbit span {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  border-radius: 999px;
+  background: #b29a7e;
+  box-shadow: 0 0 7px rgba(162, 137, 105, 0.52);
+  transform-origin: 3.5px 39px;
+  animation: focus-orbit 6s linear infinite;
+}
+
+.focus-session-time {
+  margin-top: 7px;
+  color: #655951;
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+.focus-session-copy {
+  margin-top: 3px;
+  color: #8d8078;
+  font-size: 9px;
+}
+
+.focus-session-primary,
+.focus-session-cancel {
+  padding: 4px 11px;
+  border: 1px solid rgba(162, 137, 105, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 253, 248, 0.76);
+  color: #655951;
+  font: inherit;
+  cursor: pointer;
+}
+
+.focus-session-primary {
+  margin-top: auto;
+}
+
+.focus-session-cancel {
+  margin-top: 3px;
+  border-color: transparent;
+  background: transparent;
+  color: #9a8e86;
+  font-size: 9px;
+}
+
+@keyframes focus-pulse {
+  0%, 100% { opacity: 0.56; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+
+@keyframes focus-orbit {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-session-badge span,
+  .focus-session-mark,
+  .focus-session-orbit span {
+    animation: none;
+  }
+}
+
 /* --- seasonal ambient motes (decorative, never interactive) --- */
 .season-ambient {
   position: absolute;

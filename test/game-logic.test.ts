@@ -32,6 +32,14 @@ import {
   QUIET_MOMENT_COOLDOWN_MS,
   sanitizeQuietMomentState,
 } from '../src/game/quietMoments';
+import {
+  cancelFocusSession,
+  createEmptyFocusSessionState,
+  FOCUS_SESSION_DAILY_REWARD_LIMIT,
+  progressFocusSession,
+  sanitizeFocusSessionState,
+  startFocusSession,
+} from '../src/game/focusSessions';
 
 const NOW = new Date('2026-07-09T09:00:00Z').getTime();
 
@@ -917,4 +925,77 @@ test('v8 migration adds quiet moments without losing pet data', () => {
   assert.equal(migrated.version, CURRENT_SAVE_VERSION);
   assert.deepEqual(migrated.pet.vitals, { hunger: 31, mood: 42, sleepiness: 53, affection: 64 });
   assert.deepEqual(migrated.pet.quietMoments, createEmptyQuietMomentState(NOW));
+});
+
+test('focus sessions start once, persist by deadline, and can be cancelled without penalty', () => {
+  const base = pet();
+  const started = startFocusSession(base, 10, NOW);
+  assert.equal(started.started, true);
+  assert.deepEqual(started.pet.focusSessions.active, {
+    startedAt: NOW,
+    endsAt: NOW + 10 * 60_000,
+    durationMinutes: 10,
+  });
+  assert.equal(startFocusSession(started.pet, 25, NOW + 1_000).started, false);
+  assert.equal(progressFocusSession(started.pet, NOW + 9 * 60_000).completed, false);
+
+  const cancelled = cancelFocusSession(started.pet, NOW + 2 * 60_000);
+  assert.equal(cancelled.focusSessions.active, null);
+  assert.equal(cancelled.focusSessions.completedToday, 0);
+  assert.deepEqual(cancelled.vitals, base.vitals);
+});
+
+test('completed focus sessions give a gentle capped reward and complete after restart time', () => {
+  let current = pet({ vitals: { hunger: 70, mood: 70, sleepiness: 20, affection: 10 } });
+  for (let index = 0; index < FOCUS_SESSION_DAILY_REWARD_LIMIT; index += 1) {
+    const startAt = NOW + index * 11 * 60_000;
+    current = startFocusSession(current, 10, startAt).pet;
+    const completed = progressFocusSession(current, startAt + 10 * 60_000);
+    assert.equal(completed.completed, true);
+    assert.equal(completed.rewarded, true);
+    current = completed.pet;
+  }
+  assert.equal(current.focusSessions.completedToday, 3);
+  assert.equal(current.focusSessions.rewardedToday, 3);
+  assert.equal(current.vitals.mood, 79);
+  assert.equal(current.vitals.affection, 13);
+  assert.equal(current.exp, 9);
+
+  const fourthStart = NOW + 40 * 60_000;
+  const fourth = progressFocusSession(
+    startFocusSession(current, 10, fourthStart).pet,
+    fourthStart + 10 * 60_000,
+  );
+  assert.equal(fourth.completed, true);
+  assert.equal(fourth.rewarded, false);
+  assert.equal(fourth.pet.focusSessions.completedToday, 4);
+  assert.deepEqual(fourth.pet.vitals, current.vitals);
+});
+
+test('focus session state sanitizes corruption, resets daily counts, and migrates from v8', () => {
+  const clean = sanitizeFocusSessionState({
+    date: localDateString(NOW),
+    active: { startedAt: NOW, endsAt: 0, durationMinutes: 25 },
+    completedToday: 8.8,
+    rewardedToday: 99,
+  }, NOW);
+  assert.equal(clean.active?.endsAt, NOW + 25 * 60_000);
+  assert.equal(clean.completedToday, 8);
+  assert.equal(clean.rewardedToday, FOCUS_SESSION_DAILY_REWARD_LIMIT);
+  assert.equal(sanitizeFocusSessionState({ active: { startedAt: -1, durationMinutes: 20 } }, NOW).active, null);
+
+  const nextDay = NOW + 24 * 60 * 60_000;
+  const reset = sanitizeFocusSessionState(clean, nextDay);
+  assert.equal(reset.completedToday, 0);
+  assert.equal(reset.rewardedToday, 0);
+
+  const migrated = sanitizeSave({
+    version: 8,
+    pet: { ...createInitialPetState(NOW), vitals: { hunger: 32, mood: 43, sleepiness: 54, affection: 65 } },
+    settings: {},
+    lastLaunchedAt: NOW,
+  }, NOW);
+  assert.equal(migrated.version, CURRENT_SAVE_VERSION);
+  assert.deepEqual(migrated.pet.vitals, { hunger: 32, mood: 43, sleepiness: 54, affection: 65 });
+  assert.deepEqual(migrated.pet.focusSessions, createEmptyFocusSessionState(NOW));
 });
