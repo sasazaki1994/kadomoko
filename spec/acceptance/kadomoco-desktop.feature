@@ -288,3 +288,11 @@ Feature: KadoMoco desktop pet
     When the app restarts after its end time
     Then the session completes exactly once
     And older saves receive an empty focus session state without losing pet data
+
+  Scenario: Production sprite sheet is generated from the magenta source image
+    Given the KadoMoco magenta source image is stored as a text-safe Base64 asset
+    When the developer runs "node scripts/prepare-production-sprite-sheet.mjs"
+    Then "src/assets/pet/pixel/kadomoco_sheet.png" is a 256 by 512 RGBA PNG
+    And the sprite sheet contains 4 columns and 8 rows of non-empty 64 by 64 frames
+    And the transparent corners and cells do not show the magenta source background
+    And preview artifacts are generated for visual animation review

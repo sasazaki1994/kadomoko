@@ -5,3 +5,5 @@ dist-electron/
 release/
 *.log
 .DS_Store
+artifacts/
+.tmp-sprite-source.png

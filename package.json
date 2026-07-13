@@ -6,7 +6,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "npm run validate:sprite && tsc --noEmit && vite build",
+    "build": "npm run prepare:sheet && npm run validate:sprite:check && tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -14,9 +14,11 @@
     "test": "node scripts/clean-test-output.mjs && tsc -p tsconfig.test.json && node --test .tmp-tests/test/**/*.test.js",
     "package:win": "npm run build && electron-builder --win --publish=never",
     "dist:win": "npm run package:win",
-    "validate:sprite": "node scripts/validate-sprite-sheet.mjs",
+    "validate:sprite": "npm run prepare:sheet && npm run validate:sprite:check",
     "test:e2e": "npm run build && node --test e2e/**/*.test.mjs",
-    "verify:package:win": "node scripts/verify-windows-package.mjs"
+    "verify:package:win": "node scripts/verify-windows-package.mjs",
+    "prepare:sheet": "node scripts/prepare-production-sprite-sheet.mjs",
+    "validate:sprite:check": "node scripts/validate-sprite-sheet.mjs"
   },
   "dependencies": {
     "electron-store": "^8.2.0",
