@@ -8,7 +8,9 @@ import electronPath from 'electron';
 
 const envBase = { ...process.env, NODE_ENV: 'production', KADOMOCO_E2E: '1' };
 
-function launch({ userDataDir = mkdtempSync(join(tmpdir(), 'kadomoco-e2e-')), scenario = 'window', extraEnv = [] } = {}) {
+function launch({ userDataDir, scenario = 'window', extraEnv = [] } = {}) {
+  const removeUserDataDir = userDataDir === undefined;
+  userDataDir ??= mkdtempSync(join(tmpdir(), 'kadomoco-e2e-'));
   const env = { ...envBase, KADOMOCO_E2E_SCENARIO: scenario, ...extraEnv };
   const child = spawn(electronPath, ['dist-electron/main.js', `--user-data-dir=${userDataDir}`], {
     cwd: process.cwd(), env, stdio: ['ignore', 'pipe', 'pipe'],
@@ -16,7 +18,7 @@ function launch({ userDataDir = mkdtempSync(join(tmpdir(), 'kadomoco-e2e-')), sc
   let output = '';
   child.stdout.on('data', (chunk) => { output += chunk.toString(); });
   child.stderr.on('data', (chunk) => { output += chunk.toString(); });
-  return { child, userDataDir, getOutput: () => output };
+  return { child, userDataDir, removeUserDataDir, getOutput: () => output };
 }
 
 async function waitFor(app, marker, timeout = 15_000) {
@@ -53,7 +55,7 @@ async function runScenario(t, options) {
     return { result, app };
   } finally {
     if (!app.child.killed) app.child.kill('SIGTERM');
-    rmSync(app.userDataDir, { recursive: true, force: true });
+    if (app.removeUserDataDir) rmSync(app.userDataDir, { recursive: true, force: true });
   }
 }
 
@@ -93,32 +95,38 @@ test('Electron panels resize safely and remain mutually exclusive', { timeout: 2
 
 test('Electron save data, settings, and window position survive restart', { timeout: 35_000 }, async (t) => {
   const userDataDir = mkdtempSync(join(tmpdir(), 'kadomoco-e2e-persist-'));
-  const first = await runScenario(t, { userDataDir, scenario: 'persist-write' });
-  if (!first) return;
-  const second = await runScenario(t, { userDataDir, scenario: 'persist-read' });
-  if (!second) return;
-  assert.equal(second.result.petRestored, true);
-  assert.equal(second.result.positionRestored, true);
-  assert.equal(second.result.alwaysOnTopRestored, true);
+  try {
+    const first = await runScenario(t, { userDataDir, scenario: 'persist-write' });
+    if (!first) return;
+    const second = await runScenario(t, { userDataDir, scenario: 'persist-read' });
+    if (!second) return;
+    assert.equal(second.result.petRestored, true);
+    assert.equal(second.result.positionRestored, true);
+    assert.equal(second.result.alwaysOnTopRestored, true);
+  } finally {
+    rmSync(userDataDir, { recursive: true, force: true });
+  }
 });
 
 test('Electron recovers from corrupt save files without crashing', { timeout: 25_000 }, async (t) => {
   const userDataDir = mkdtempSync(join(tmpdir(), 'kadomoco-e2e-corrupt-'));
-  const backupDir = join(userDataDir, 'backups');
   const primary = join(userDataDir, 'kadomoco-save.json');
   const backup = join(userDataDir, 'kadomoco-save-backup.json');
   const backupPayload = { version: 1, pet: null, settings: { alwaysOnTop: true, volume: 50, statusDisplayMode: 'both', ambientFrequency: 'normal', bubbleFrequency: 'normal', reduceActivityWhenFullscreen: true }, windowPosition: { x: 42, y: 42 }, lastLaunchedAt: 1 };
-  writeFileSync(primary, '{broken json');
-  writeFileSync(backup, JSON.stringify(backupPayload));
-  const backupRun = await runScenario(t, { userDataDir, scenario: 'persist-read' });
-  if (!backupRun) return;
-  assert.equal(backupRun.result.alwaysOnTopRestored, true);
-  writeFileSync(primary, '{broken json');
-  writeFileSync(backup, '{broken json');
-  const fallbackRun = await runScenario(t, { userDataDir, scenario: 'persist-read' });
-  if (!fallbackRun) return;
-  assert.equal(fallbackRun.result.loadedInitialFallback, true);
-  rmSync(backupDir, { recursive: true, force: true });
+  try {
+    writeFileSync(primary, '{broken json');
+    writeFileSync(backup, JSON.stringify(backupPayload));
+    const backupRun = await runScenario(t, { userDataDir, scenario: 'persist-read' });
+    if (!backupRun) return;
+    assert.equal(backupRun.result.alwaysOnTopRestored, true);
+    writeFileSync(primary, '{broken json');
+    writeFileSync(backup, '{broken json');
+    const fallbackRun = await runScenario(t, { userDataDir, scenario: 'persist-read' });
+    if (!fallbackRun) return;
+    assert.equal(fallbackRun.result.loadedInitialFallback, true);
+  } finally {
+    rmSync(userDataDir, { recursive: true, force: true });
+  }
 });
 
 test('Electron close hides, tray actions reuse window, and quit exits', { timeout: 25_000 }, async (t) => {

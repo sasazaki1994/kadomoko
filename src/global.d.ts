@@ -21,6 +21,6 @@ type KadomocoE2eBridge = {
 declare global {
   interface Window {
     /** Production-only test bridge exposed only when KADOMOCO_E2E=1 in Electron. */
-    __kadomocoE2e: KadomocoE2eBridge;
+    __kadomocoE2e?: KadomocoE2eBridge;
   }
 }

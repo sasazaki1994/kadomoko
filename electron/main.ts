@@ -250,6 +250,15 @@ async function evaluateRenderer(script: string) {
   return win.webContents.executeJavaScript(script, true);
 }
 
+async function waitForE2eCondition(predicate: () => boolean, timeoutMs = 5_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error('Timed out waiting for E2E main-process condition');
+}
+
 async function runE2eScenario() {
   if (!win) return;
   const scenario = process.env.KADOMOCO_E2E_SCENARIO ?? 'window';
@@ -290,12 +299,21 @@ async function runE2eScenario() {
       const closeHidWindow = !win.isVisible() && BrowserWindow.getAllWindows().length === 1;
       win.show();
       setAlwaysOnTop(!store.get('settings').alwaysOnTop);
+      let beforeQuitObserved = false;
+      app.once('before-quit', (event) => {
+        beforeQuitObserved = true;
+        event.preventDefault();
+      });
+      await evaluateRenderer(`window.kadomoco.quitApp()`);
+      await waitForE2eCondition(() => beforeQuitObserved);
       result = {
         closeHidWindow,
         showReusedWindow: win.id === id && win.isVisible(),
         trayAlwaysOnTopSynced: win.isAlwaysOnTop() === store.get('settings').alwaysOnTop,
-        quitRequested: true,
+        quitRequested: beforeQuitObserved && isQuitting,
       };
+    } else {
+      throw new Error(`Unsupported KADOMOCO_E2E_SCENARIO: ${scenario}`);
     }
     console.log(`[kadomoco-e2e-result] ${JSON.stringify({ ok: true, ...base, ...result, consoleErrors: e2eConsoleErrors, unhandledErrors: e2eUnhandledErrors })}`);
   } catch (error) {

@@ -91,7 +91,7 @@ export default function App() {
   useEffect(() => {
     if (!import.meta.env.PROD || !window.location.href.startsWith('file:')) return;
     if (!('__kadomocoE2e' in window)) return;
-    window.__kadomocoE2e.bindStore(usePetStore);
+    window.__kadomocoE2e?.bindStore(usePetStore);
   }, []);
 
   if (!loaded) {
