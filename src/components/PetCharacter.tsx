@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PetMachineState } from '../game/types';
+import { PET_SPRITE_SHEET, spriteRowForState, spriteStateForMachineState } from '../game/spriteSheet';
 import {
   selectEffect,
   selectMachineState,
@@ -11,37 +12,6 @@ const sheetUrl = new URL('../assets/pet/pixel/kadomoco_sheet.png', import.meta.u
 
 const DRAG_THRESHOLD_PX = 4;
 const CLICK_DELAY_MS = 250;
-
-function spriteRowFor(state: PetMachineState): number {
-  switch (state) {
-    case 'idle':
-      return 0;
-    case 'happy':
-      return 1;
-    case 'hungry':
-      return 2;
-    case 'sleepy':
-      return 3;
-    case 'sleeping':
-      return 4;
-    case 'sulking':
-      return 5;
-    case 'playing':
-      return 6;
-    case 'curious':
-      return 7;
-    case 'resting':
-      return 3;
-    case 'reaction':
-      return 1;
-    case 'levelUp':
-      return 1;
-    default: {
-      const exhaustive: never = state;
-      return exhaustive;
-    }
-  }
-}
 
 export default function PetCharacter() {
   const machineState = usePetStore(selectMachineState);
@@ -101,6 +71,7 @@ export default function PetCharacter() {
     };
   }, [clickReaction, togglePanel]);
 
+  const spriteState = spriteStateForMachineState(machineState);
   const idleSway = machineState === 'idle' && unlockedIdleMotionIds.includes('sway');
   const showSparkle =
     unlockedPropIds.includes('sparkle') &&
@@ -128,9 +99,12 @@ export default function PetCharacter() {
       {spriteReady ? (
         <div
           className="pet-sprite"
+          role="img"
+          aria-label="カドモコ"
           style={{
             backgroundImage: `url(${sheetUrl})`,
-            backgroundPositionY: `${-spriteRowFor(machineState) * 64}px`,
+            backgroundPositionY: `${-spriteRowForState(spriteState) * PET_SPRITE_SHEET.frameHeight}px`,
+            animationDuration: `${PET_SPRITE_SHEET.animationMs[spriteState]}ms`,
           }}
         />
       ) : (

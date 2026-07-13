@@ -6,14 +6,16 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "npm run validate:sprite && tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "preview": "vite preview",
     "generate:sheet": "node scripts/generate-placeholder-sheet.mjs",
     "test": "node scripts/clean-test-output.mjs && tsc -p tsconfig.test.json && node --test .tmp-tests/test/**/*.test.js",
     "package:win": "npm run build && electron-builder --win --publish=never",
-    "dist:win": "npm run package:win"
+    "dist:win": "npm run package:win",
+    "validate:sprite": "node scripts/validate-sprite-sheet.mjs",
+    "test:e2e": "npm run build && node --test e2e/**/*.test.mjs"
   },
   "dependencies": {
     "electron-store": "^8.2.0",
@@ -46,16 +48,31 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
-      "package.json"
+      "package.json",
+      "!**/*.map",
+      "!test{,/**}",
+      "!e2e{,/**}",
+      "!spec{,/**}",
+      "!scripts{,/**}",
+      "!src{,/**}"
     ],
     "win": {
       "target": [
         "nsis",
         "zip"
-      ]
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "executableName": "KadoMoco"
     },
     "extraMetadata": {
       "main": "dist-electron/main.js"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
     }
   }
 }

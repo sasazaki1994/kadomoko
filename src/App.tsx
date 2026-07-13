@@ -18,7 +18,7 @@ import { usePetStore } from './store/usePetStore';
 const isDevMode = import.meta.env.DEV;
 
 const WINDOW_NORMAL = 180;
-const WINDOW_EXPANDED = 240;
+const WINDOW_EXPANDED = 260;
 
 export default function App() {
   const loaded = usePetStore((s) => s.loaded);
@@ -79,6 +79,11 @@ export default function App() {
   return (
     <div
       className="app-root"
+      tabIndex={-1}
+      onKeyDown={(e) => {
+        if (e.key !== 'Escape') return;
+        usePetStore.setState({ menuOpen: false, panelOpen: false, recordPanelOpen: false, devPanelOpen: false, quietMomentOpen: false, focusSessionOpen: false });
+      }}
       onContextMenu={(e) => {
         e.preventDefault();
         setMenuOpen(!menuOpen);
