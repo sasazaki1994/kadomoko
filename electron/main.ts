@@ -13,8 +13,11 @@ import path from 'node:path';
 
 const WINDOW_SIZE = 180;
 const WINDOW_MIN = 120;
-const WINDOW_MAX = 240;
+const WINDOW_MAX = 260;
 const SCREEN_MARGIN = 12;
+const FRAMELESS_WINDOW = true;
+const TRANSPARENT_WINDOW = true;
+const SKIP_TASKBAR = true;
 
 type StoreSchema = {
   version: number;
@@ -189,12 +192,12 @@ function createWindow() {
     maxHeight: WINDOW_MAX,
     x: position.x,
     y: position.y,
-    frame: false,
-    transparent: true,
+    frame: !FRAMELESS_WINDOW,
+    transparent: TRANSPARENT_WINDOW,
     resizable: false,
     maximizable: false,
     fullscreenable: false,
-    skipTaskbar: true,
+    skipTaskbar: SKIP_TASKBAR,
     alwaysOnTop: settings.alwaysOnTop,
     hasShadow: false,
     webPreferences: {
@@ -217,6 +220,12 @@ function createWindow() {
   });
 
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+  if (process.env.KADOMOCO_E2E === '1') {
+    win.webContents.once('did-finish-load', () => {
+      console.log(`[kadomoco-e2e-ready] frameless=${FRAMELESS_WINDOW} transparent=${TRANSPARENT_WINDOW} skipTaskbar=${SKIP_TASKBAR} devTools=${win?.webContents.isDevToolsOpened()}`);
+    });
+  }
+
   if (devServerUrl) {
     void win.loadURL(devServerUrl);
   } else {
@@ -267,14 +276,14 @@ function registerIpc() {
     if (!win) return;
     const w = Math.min(WINDOW_MAX, Math.max(WINDOW_MIN, Math.round(width)));
     const h = Math.min(WINDOW_MAX, Math.max(WINDOW_MIN, Math.round(height)));
-    // Keep the bottom-right corner anchored so the pet does not jump.
+    // Keep the bottom-right corner anchored, then clamp to the current display work area.
     const bounds = win.getBounds();
-    win.setBounds({
-      x: bounds.x + bounds.width - w,
-      y: bounds.y + bounds.height - h,
-      width: w,
-      height: h,
-    });
+    const display = screen.getDisplayMatching(bounds);
+    const area = display.workArea;
+    const targetX = Math.min(Math.max(bounds.x + bounds.width - w, area.x), area.x + area.width - w);
+    const targetY = Math.min(Math.max(bounds.y + bounds.height - h, area.y), area.y + area.height - h);
+    win.setBounds({ x: targetX, y: targetY, width: w, height: h });
+    persistWindowPosition();
   });
 
   ipcMain.on('drag:start', () => {

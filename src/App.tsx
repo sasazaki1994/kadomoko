@@ -18,7 +18,7 @@ import { usePetStore } from './store/usePetStore';
 const isDevMode = import.meta.env.DEV;
 
 const WINDOW_NORMAL = 180;
-const WINDOW_EXPANDED = 240;
+const WINDOW_EXPANDED = 260;
 
 export default function App() {
   const loaded = usePetStore((s) => s.loaded);
@@ -71,6 +71,22 @@ export default function App() {
     const size = expanded ? WINDOW_EXPANDED : WINDOW_NORMAL;
     void window.kadomoco?.setWindowSize(size, size);
   }, [panelOpen, devPanelOpen, menuOpen, recordPanelOpen, quietMomentOpen, focusSessionOpen]);
+
+  useEffect(() => {
+    const closePanelsOnEscape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      usePetStore.setState({
+        menuOpen: false,
+        panelOpen: false,
+        recordPanelOpen: false,
+        devPanelOpen: false,
+        quietMomentOpen: false,
+        focusSessionOpen: false,
+      });
+    };
+    window.addEventListener('keydown', closePanelsOnEscape);
+    return () => window.removeEventListener('keydown', closePanelsOnEscape);
+  }, []);
 
   if (!loaded) {
     return <div className="app-root" />;
