@@ -56,6 +56,8 @@ let tray: Tray | null = null;
 let isQuitting = false;
 let dragInterval: ReturnType<typeof setInterval> | null = null;
 let movedSaveTimer: ReturnType<typeof setTimeout> | null = null;
+const e2eConsoleErrors: string[] = [];
+const e2eUnhandledErrors: string[] = [];
 
 function bottomRightPosition(width: number, height: number): { x: number; y: number } {
   const area = screen.getPrimaryDisplay().workArea;
@@ -207,6 +209,16 @@ function createWindow() {
     },
   });
 
+  win.webContents.on('console-message', (_event, level, message) => {
+    if (process.env.KADOMOCO_E2E === '1' && level >= 3) e2eConsoleErrors.push(message);
+  });
+  win.webContents.on('render-process-gone', (_event, details) => {
+    if (process.env.KADOMOCO_E2E === '1') e2eUnhandledErrors.push(`render-process-gone:${details.reason}`);
+  });
+  win.webContents.on('unresponsive', () => {
+    if (process.env.KADOMOCO_E2E === '1') e2eUnhandledErrors.push('renderer-unresponsive');
+  });
+
   win.on('close', (event) => {
     if (!isQuitting) {
       event.preventDefault();
@@ -221,8 +233,8 @@ function createWindow() {
 
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
   if (process.env.KADOMOCO_E2E === '1') {
-    win.webContents.once('did-finish-load', () => {
-      console.log(`[kadomoco-e2e-ready] frameless=${FRAMELESS_WINDOW} transparent=${TRANSPARENT_WINDOW} skipTaskbar=${SKIP_TASKBAR} devTools=${win?.webContents.isDevToolsOpened()}`);
+    win.webContents.once('did-finish-load', async () => {
+      await runE2eScenario();
     });
   }
 
@@ -230,6 +242,82 @@ function createWindow() {
     void win.loadURL(devServerUrl);
   } else {
     void win.loadFile(path.join(__dirname, '../dist/index.html'));
+  }
+}
+
+async function evaluateRenderer(script: string) {
+  if (!win) return null;
+  return win.webContents.executeJavaScript(script, true);
+}
+
+async function waitForE2eCondition(predicate: () => boolean, timeoutMs = 5_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error('Timed out waiting for E2E main-process condition');
+}
+
+async function runE2eScenario() {
+  if (!win) return;
+  const scenario = process.env.KADOMOCO_E2E_SCENARIO ?? 'window';
+  const base = {
+    windowCount: BrowserWindow.getAllWindows().length,
+    frameless: FRAMELESS_WINDOW,
+    transparent: TRANSPARENT_WINDOW,
+    skipTaskbar: SKIP_TASKBAR,
+    initialSize: win.getSize(),
+    devTools: win.webContents.isDevToolsOpened(),
+  };
+  try {
+    let result: Record<string, unknown> = {};
+    if (scenario === 'window') {
+      result = await evaluateRenderer(`(async()=>{await window.__kadomocoE2e.waitLoaded();return {devButtonVisible:!!document.querySelector('.dev-toggle')}})()`) as Record<string, unknown>;
+    } else if (scenario === 'interaction') {
+      result = await evaluateRenderer(`window.__kadomocoE2e.runInteractionScenario()`) as Record<string, unknown>;
+    } else if (scenario === 'panels') {
+      result = await evaluateRenderer(`window.__kadomocoE2e.runPanelScenario()`) as Record<string, unknown>;
+      result.expandedSize = result.expandedSize ?? win.getSize();
+      result.withinDisplay = screen.getAllDisplays().some((display) => {
+        const b = win!.getBounds();
+        const a = display.workArea;
+        return b.x >= a.x && b.y >= a.y && b.x + b.width <= a.x + a.width && b.y + b.height <= a.y + a.height;
+      });
+    } else if (scenario === 'persist-write') {
+      win.setPosition(64, 72);
+      persistWindowPosition();
+      setAlwaysOnTop(true);
+      result = await evaluateRenderer(`window.__kadomocoE2e.runPersistWriteScenario()`) as Record<string, unknown>;
+    } else if (scenario === 'persist-read') {
+      result = await evaluateRenderer(`window.__kadomocoE2e.runPersistReadScenario()`) as Record<string, unknown>;
+      result.positionRestored = win.getPosition()[0] === 64 && win.getPosition()[1] === 72;
+      result.alwaysOnTopRestored = win.isAlwaysOnTop();
+    } else if (scenario === 'lifecycle') {
+      const id = win.id;
+      win.close();
+      const closeHidWindow = !win.isVisible() && BrowserWindow.getAllWindows().length === 1;
+      win.show();
+      setAlwaysOnTop(!store.get('settings').alwaysOnTop);
+      let beforeQuitObserved = false;
+      app.once('before-quit', (event) => {
+        beforeQuitObserved = true;
+        event.preventDefault();
+      });
+      await evaluateRenderer(`window.kadomoco.quitApp()`);
+      await waitForE2eCondition(() => beforeQuitObserved);
+      result = {
+        closeHidWindow,
+        showReusedWindow: win.id === id && win.isVisible(),
+        trayAlwaysOnTopSynced: win.isAlwaysOnTop() === store.get('settings').alwaysOnTop,
+        quitRequested: beforeQuitObserved && isQuitting,
+      };
+    } else {
+      throw new Error(`Unsupported KADOMOCO_E2E_SCENARIO: ${scenario}`);
+    }
+    console.log(`[kadomoco-e2e-result] ${JSON.stringify({ ok: true, ...base, ...result, consoleErrors: e2eConsoleErrors, unhandledErrors: e2eUnhandledErrors })}`);
+  } catch (error) {
+    console.log(`[kadomoco-e2e-result] ${JSON.stringify({ ok: false, ...base, error: error instanceof Error ? error.message : String(error), consoleErrors: e2eConsoleErrors, unhandledErrors: e2eUnhandledErrors })}`);
   }
 }
 
