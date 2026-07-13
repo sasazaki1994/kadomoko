@@ -54,7 +54,7 @@ npm run package:win
 - 出力先は `release/`
 - appId は `com.kadomoco.app`
 - productName と実行ファイル名は `KadoMoco`
-- 正式アイコンは `build/icon.ico` に差し替え予定
+- 正式アイコンは未同梱。用意できたら `build/icon.ico` を追加し、`build.win.icon` に指定
 - ユーザーデータはアンインストール時に自動削除しない
 
 ## 受け入れ仕様

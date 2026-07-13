@@ -930,7 +930,16 @@
   .effect-curl,
   .effect-stretch,
   .effect-gaze,
-  .effect-doze {
+  .effect-doze,
+  .discovery-hint,
+  [class^='discovery-'],
+  [class*=' discovery-'],
+  [class^='tiny-'],
+  [class*=' tiny-'],
+  .dream-hint,
+  [class^='dream-'],
+  [class*=' dream-'],
+  .season-mote {
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
   }

@@ -91,7 +91,7 @@ npm run package:win
 
 `release/` に NSIS インストーラーと ZIP を生成します。設定は `package.json` の `build` セクションで管理します。
 
-正式アイコンが用意できたら `build/icon.ico` を追加し、同じパスで差し替えてください。現時点のトレイアイコンはコード生成のプレースホルダーです。
+正式アイコンが用意できたら `build/icon.ico` を追加し、`package.json` の `build.win.icon` でそのパスを指定してください。現時点では未指定で、トレイアイコンはコード生成のプレースホルダーです。
 
 配布前チェック:
 

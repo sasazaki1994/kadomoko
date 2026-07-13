@@ -1,13 +1,8 @@
+import spriteSheetSpec from './spriteSheetSpec.json';
 import type { PetMachineState } from './types';
 
 export const PET_SPRITE_SHEET = {
-  path: 'src/assets/pet/pixel/kadomoco_sheet.png',
-  width: 256,
-  height: 512,
-  columns: 4,
-  rows: 8,
-  frameWidth: 64,
-  frameHeight: 64,
+  ...spriteSheetSpec,
   states: ['normal', 'happy', 'hungry', 'sleepy', 'sleeping', 'sulking', 'playing', 'curious'] as const,
   animationMs: {
     normal: 980,

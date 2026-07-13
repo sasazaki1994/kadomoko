@@ -61,7 +61,6 @@
         "nsis",
         "zip"
       ],
-      "icon": "build/icon.ico",
       "artifactName": "${productName}-${version}-${arch}.${ext}",
       "executableName": "KadoMoco"
     },

@@ -72,6 +72,22 @@ export default function App() {
     void window.kadomoco?.setWindowSize(size, size);
   }, [panelOpen, devPanelOpen, menuOpen, recordPanelOpen, quietMomentOpen, focusSessionOpen]);
 
+  useEffect(() => {
+    const closePanelsOnEscape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      usePetStore.setState({
+        menuOpen: false,
+        panelOpen: false,
+        recordPanelOpen: false,
+        devPanelOpen: false,
+        quietMomentOpen: false,
+        focusSessionOpen: false,
+      });
+    };
+    window.addEventListener('keydown', closePanelsOnEscape);
+    return () => window.removeEventListener('keydown', closePanelsOnEscape);
+  }, []);
+
   if (!loaded) {
     return <div className="app-root" />;
   }
@@ -79,11 +95,6 @@ export default function App() {
   return (
     <div
       className="app-root"
-      tabIndex={-1}
-      onKeyDown={(e) => {
-        if (e.key !== 'Escape') return;
-        usePetStore.setState({ menuOpen: false, panelOpen: false, recordPanelOpen: false, devPanelOpen: false, quietMomentOpen: false, focusSessionOpen: false });
-      }}
       onContextMenu={(e) => {
         e.preventDefault();
         setMenuOpen(!menuOpen);

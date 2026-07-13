@@ -1,9 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+const spriteSheetSpec = JSON.parse(readFileSync(join(process.cwd(), 'src/game/spriteSheetSpec.json'), 'utf8'));
+
 const ROOT = process.cwd();
-const SPRITE_PATH = 'src/assets/pet/pixel/kadomoco_sheet.png';
-const EXPECTED = { width: 256, height: 512 };
+const SPRITE_PATH = spriteSheetSpec.path;
+const EXPECTED = { width: spriteSheetSpec.width, height: spriteSheetSpec.height };
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 function fail(message) {

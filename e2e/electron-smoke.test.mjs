@@ -8,6 +8,12 @@ import electronPath from 'electron';
 const userDataDir = join(process.cwd(), '.tmp-e2e-user-data');
 const env = { ...process.env, NODE_ENV: 'production', KADOMOCO_E2E: '1' };
 
+function parseReadySettings(output) {
+  const match = output.match(/\[kadomoco-e2e-ready\] (.+)/);
+  assert.ok(match, `Missing ready marker in output:\n${output}`);
+  return Object.fromEntries(match[1].trim().split(/\s+/).map((entry) => entry.split('=')));
+}
+
 function launch() {
   const child = spawn(electronPath, ['dist-electron/main.js', `--user-data-dir=${userDataDir}`], {
     cwd: process.cwd(), env, stdio: ['ignore', 'pipe', 'pipe'],
@@ -38,10 +44,11 @@ test('Electron production smoke test exposes safe window behavior', { timeout: 2
       t.skip(`Electron runtime libraries are missing in this environment: ${app.getOutput().trim()}`);
       return;
     }
-    assert.match(app.getOutput(), /frameless=true/);
-    assert.match(app.getOutput(), /transparent=true/);
-    assert.match(app.getOutput(), /skipTaskbar=true/);
-    assert.match(app.getOutput(), /devTools=false/);
+    const settings = parseReadySettings(app.getOutput());
+    assert.equal(settings.frameless, 'true');
+    assert.equal(settings.transparent, 'true');
+    assert.equal(settings.skipTaskbar, 'true');
+    assert.equal(settings.devTools, 'false');
     app.child.kill('SIGTERM');
   } finally {
     if (!app.child.killed) app.child.kill('SIGTERM');

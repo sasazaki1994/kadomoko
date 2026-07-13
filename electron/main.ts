@@ -15,6 +15,9 @@ const WINDOW_SIZE = 180;
 const WINDOW_MIN = 120;
 const WINDOW_MAX = 260;
 const SCREEN_MARGIN = 12;
+const FRAMELESS_WINDOW = true;
+const TRANSPARENT_WINDOW = true;
+const SKIP_TASKBAR = true;
 
 type StoreSchema = {
   version: number;
@@ -189,12 +192,12 @@ function createWindow() {
     maxHeight: WINDOW_MAX,
     x: position.x,
     y: position.y,
-    frame: false,
-    transparent: true,
+    frame: !FRAMELESS_WINDOW,
+    transparent: TRANSPARENT_WINDOW,
     resizable: false,
     maximizable: false,
     fullscreenable: false,
-    skipTaskbar: true,
+    skipTaskbar: SKIP_TASKBAR,
     alwaysOnTop: settings.alwaysOnTop,
     hasShadow: false,
     webPreferences: {
@@ -219,7 +222,7 @@ function createWindow() {
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
   if (process.env.KADOMOCO_E2E === '1') {
     win.webContents.once('did-finish-load', () => {
-      console.log(`[kadomoco-e2e-ready] frameless=${!win?.isFullScreenable()} transparent=true skipTaskbar=true devTools=${win?.webContents.isDevToolsOpened()}`);
+      console.log(`[kadomoco-e2e-ready] frameless=${FRAMELESS_WINDOW} transparent=${TRANSPARENT_WINDOW} skipTaskbar=${SKIP_TASKBAR} devTools=${win?.webContents.isDevToolsOpened()}`);
     });
   }
 
