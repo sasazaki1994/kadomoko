@@ -46,9 +46,19 @@ function quarantineCorruptStoreFile(name: string) {
   if (!fs.existsSync(file)) return;
   try {
     JSON.parse(fs.readFileSync(file, 'utf8'));
-  } catch {
+  } catch (parseError) {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    fs.renameSync(file, path.join(app.getPath('userData'), `${name}.corrupt-${stamp}.json`));
+    const quarantined = path.join(app.getPath('userData'), `${name}.corrupt-${stamp}.json`);
+    try {
+      fs.renameSync(file, quarantined);
+    } catch (renameError) {
+      console.warn(`Failed to quarantine corrupt store file ${file}:`, renameError);
+      try {
+        fs.writeFileSync(file, JSON.stringify(storeDefaults, null, 2));
+      } catch (writeError) {
+        console.warn(`Failed to replace corrupt store file ${file}; electron-store may need to use its own fallback.`, writeError, parseError);
+      }
+    }
   }
 }
 

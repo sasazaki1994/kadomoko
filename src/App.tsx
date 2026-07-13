@@ -123,15 +123,20 @@ export default function App() {
         const feedUpdatedExpOrStatus = afterFeed.exp !== before.exp || afterFeed.vitals.hunger !== before.vitals.hunger;
         snapshot().performAction('feed');
         await wait(50);
-        const exhausted = { ...snapshot().pet, vitals: { ...snapshot().pet.vitals, sleepiness: 100 } };
+        const cooldownBubble = snapshot().bubble?.text;
+        const cooldownRejected = cooldownBubble === 'ちょっと待って';
+        const exhausted = { ...snapshot().pet, vitals: { ...snapshot().pet.vitals, sleepiness: 100 }, lastActionAt: { ...snapshot().pet.lastActionAt, play: undefined } };
         usePetStore.setState({ pet: exhausted, bubble: null, lastBubbleAt: 0 });
         snapshot().setMenuOpen(true);
         snapshot().performAction('play');
         await wait(50);
+        const blockedPlayBubble = snapshot().bubble?.text;
+        const blockedPlayReasonShown = blockedPlayBubble === 'ちょっと眠い';
         snapshot().showBubble('direct-action', true);
+        const directBubbleShown = snapshot().bubble?.text === 'direct-action';
         snapshot().tick();
         await wait(50);
-        return { leftClickReacted, menuOpened, escapeClosedMenu: true, doubleClickOpenedPanel: true, doubleClickClosedPanel: true, feedUpdatedExpOrStatus, cooldownRejected: snapshot().bubble !== null, blockedPlayReasonShown: snapshot().bubble !== null, directBubbleSurvivedAmbientTick: snapshot().bubble?.text === 'direct-action' };
+        return { leftClickReacted, menuOpened, escapeClosedMenu: true, doubleClickOpenedPanel: true, doubleClickClosedPanel: true, feedUpdatedExpOrStatus, cooldownRejected, cooldownBubble, blockedPlayReasonShown, blockedPlayBubble, directBubbleSurvivedAmbientTick: directBubbleShown && snapshot().bubble?.text === 'direct-action' };
       },
       runPanelScenario: async () => {
         await waitFor(() => snapshot().loaded);
