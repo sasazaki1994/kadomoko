@@ -12,7 +12,9 @@ function launch({ userDataDir, scenario = 'window', extraEnv = [] } = {}) {
   const removeUserDataDir = userDataDir === undefined;
   userDataDir ??= mkdtempSync(join(tmpdir(), 'kadomoco-e2e-'));
   const env = { ...envBase, KADOMOCO_E2E_SCENARIO: scenario, ...extraEnv };
-  const child = spawn(electronPath, ['dist-electron/main.js', `--user-data-dir=${userDataDir}`], {
+  const args = ['dist-electron/main.js', `--user-data-dir=${userDataDir}`];
+  if (process.platform === 'linux' && env.KADOMOCO_E2E === '1') args.unshift('--no-sandbox');
+  const child = spawn(electronPath, args, {
     cwd: process.cwd(), env, stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = '';
@@ -21,13 +23,37 @@ function launch({ userDataDir, scenario = 'window', extraEnv = [] } = {}) {
   return { child, userDataDir, removeUserDataDir, getOutput: () => output };
 }
 
+function waitForExit(child, timeout = 5_000) {
+  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => { clearTimeout(timer); resolve(); };
+    const timer = setTimeout(() => {
+      if (process.platform === 'win32') {
+        spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+      } else {
+        child.kill('SIGKILL');
+      }
+      resolve();
+    }, timeout);
+    child.once('close', done);
+    child.kill('SIGTERM');
+  });
+}
+
+async function rmRetry(path) {
+  for (let i = 0; i < 8; i += 1) {
+    try { rmSync(path, { recursive: true, force: true }); return; }
+    catch (error) { if (i === 7) throw error; await new Promise((resolve) => setTimeout(resolve, 150 * (i + 1))); }
+  }
+}
+
 async function waitFor(app, marker, timeout = 15_000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
     const output = app.getOutput();
     if (output.includes(marker)) return output;
-    if (output.includes('error while loading shared libraries')) {
-      return { skip: `Electron runtime libraries are missing in this environment: ${output.trim()}` };
+    if (app.child.exitCode !== null || app.child.signalCode !== null) {
+      assert.fail(`Electron exited before ${marker} (code=${app.child.exitCode}, signal=${app.child.signalCode}). Output:\n${output}`);
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
@@ -54,8 +80,8 @@ async function runScenario(t, options) {
     assert.deepEqual(result.unhandledErrors, []);
     return { result, app };
   } finally {
-    if (!app.child.killed) app.child.kill('SIGTERM');
-    if (app.removeUserDataDir) rmSync(app.userDataDir, { recursive: true, force: true });
+    await waitForExit(app.child);
+    if (app.removeUserDataDir) await rmRetry(app.userDataDir);
   }
 }
 
@@ -104,7 +130,7 @@ test('Electron save data, settings, and window position survive restart', { time
     assert.equal(second.result.positionRestored, true);
     assert.equal(second.result.alwaysOnTopRestored, true);
   } finally {
-    rmSync(userDataDir, { recursive: true, force: true });
+    await rmRetry(userDataDir);
   }
 });
 
@@ -119,13 +145,16 @@ test('Electron recovers from corrupt save files without crashing', { timeout: 25
     const backupRun = await runScenario(t, { userDataDir, scenario: 'persist-read' });
     if (!backupRun) return;
     assert.equal(backupRun.result.alwaysOnTopRestored, true);
+    const restartAfterBackupRecovery = await runScenario(t, { userDataDir, scenario: 'persist-read' });
+    if (!restartAfterBackupRecovery) return;
+    assert.equal(restartAfterBackupRecovery.result.alwaysOnTopRestored, true);
     writeFileSync(primary, '{broken json');
     writeFileSync(backup, '{broken json');
     const fallbackRun = await runScenario(t, { userDataDir, scenario: 'persist-read' });
     if (!fallbackRun) return;
     assert.equal(fallbackRun.result.loadedInitialFallback, true);
   } finally {
-    rmSync(userDataDir, { recursive: true, force: true });
+    await rmRetry(userDataDir);
   }
 });
 

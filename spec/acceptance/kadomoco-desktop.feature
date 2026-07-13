@@ -296,3 +296,19 @@ Feature: KadoMoco desktop pet
     And the sprite sheet contains 4 columns and 8 rows of non-empty 64 by 64 frames
     And the transparent corners and cells do not show the magenta source background
     And preview artifacts are generated for visual animation review
+
+  Scenario: Corrupted primary and backup saves fall back safely
+    Given the primary save data is corrupted
+    And the backup save data is corrupted
+    When the app is restarted
+    Then a fresh initial pet state is loaded
+    And the app does not crash
+    And the corrupted files are kept aside when possible
+
+  Scenario: Electron E2E uses a Linux-only sandbox workaround
+    Given KADOMOCO_E2E is set to "1"
+    And the operating system is Linux
+    When Electron E2E launches the production app
+    Then the app is launched with an E2E-only sandbox workaround
+    And normal production launches keep their default sandbox behavior
+    And early Electron exits report stderr and the exit status without waiting for the full scenario timeout

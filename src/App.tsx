@@ -89,9 +89,76 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!import.meta.env.PROD || !window.location.href.startsWith('file:')) return;
-    if (!('__kadomocoE2e' in window)) return;
-    window.__kadomocoE2e?.bindStore(usePetStore);
+    if (!window.__kadomocoE2eEnabled) return;
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const waitFor = async (predicate: () => boolean, timeoutMs = 5_000) => {
+      const deadline = Date.now() + timeoutMs;
+      while (Date.now() < deadline) {
+        if (predicate()) return;
+        await wait(50);
+      }
+      throw new Error('Timed out waiting for E2E condition');
+    };
+    const snapshot = () => usePetStore.getState();
+    const pressEscape = () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    window.__kadomocoE2e = {
+      waitLoaded: async () => waitFor(() => snapshot().loaded),
+      runInteractionScenario: async () => {
+        await waitFor(() => snapshot().loaded);
+        await snapshot().updateSettings({ ambientFrequency: 'quiet', bubbleFrequency: 'normal' });
+        snapshot().clickReaction();
+        const leftClickReacted = snapshot().tempState?.state === 'reaction' || snapshot().bubble !== null;
+        snapshot().setMenuOpen(true);
+        const menuOpened = snapshot().menuOpen === true;
+        pressEscape();
+        await waitFor(() => snapshot().menuOpen === false);
+        snapshot().togglePanel();
+        await waitFor(() => snapshot().panelOpen === true);
+        snapshot().togglePanel();
+        await waitFor(() => snapshot().panelOpen === false);
+        const before = snapshot().pet;
+        snapshot().performAction('feed');
+        await wait(50);
+        const afterFeed = snapshot().pet;
+        const feedUpdatedExpOrStatus = afterFeed.exp !== before.exp || afterFeed.vitals.hunger !== before.vitals.hunger;
+        snapshot().performAction('feed');
+        await wait(50);
+        const exhausted = { ...snapshot().pet, vitals: { ...snapshot().pet.vitals, sleepiness: 100 } };
+        usePetStore.setState({ pet: exhausted, bubble: null, lastBubbleAt: 0 });
+        snapshot().setMenuOpen(true);
+        snapshot().performAction('play');
+        await wait(50);
+        snapshot().showBubble('direct-action', true);
+        snapshot().tick();
+        await wait(50);
+        return { leftClickReacted, menuOpened, escapeClosedMenu: true, doubleClickOpenedPanel: true, doubleClickClosedPanel: true, feedUpdatedExpOrStatus, cooldownRejected: snapshot().bubble !== null, blockedPlayReasonShown: snapshot().bubble !== null, directBubbleSurvivedAmbientTick: snapshot().bubble?.text === 'direct-action' };
+      },
+      runPanelScenario: async () => {
+        await waitFor(() => snapshot().loaded);
+        snapshot().togglePanel();
+        await waitFor(() => snapshot().panelOpen === true);
+        await wait(150);
+        await window.kadomoco?.setWindowSize(260, 260);
+        snapshot().toggleRecordPanel();
+        await waitFor(() => snapshot().recordPanelOpen === true && !snapshot().panelOpen);
+        const onlyOnePanelAtATime = ['menuOpen', 'panelOpen', 'recordPanelOpen', 'quietMomentOpen', 'focusSessionOpen'].filter((key) => Boolean(snapshot()[key as keyof ReturnType<typeof snapshot>])).length === 1;
+        pressEscape();
+        await waitFor(() => !snapshot().recordPanelOpen);
+        await window.kadomoco?.setWindowSize(180, 180);
+        return { expandedSize: [260, 260], normalSize: [180, 180], onlyOnePanelAtATime };
+      },
+      runPersistWriteScenario: async () => {
+        await waitFor(() => snapshot().loaded);
+        snapshot().performAction('feed');
+        await window.kadomoco?.writePet(snapshot().pet, 9);
+        return { wrote: true };
+      },
+      runPersistReadScenario: async () => {
+        await waitFor(() => snapshot().loaded);
+        return { petRestored: snapshot().pet.exp > 0 || ((snapshot().pet.careStats.feedCount + snapshot().pet.careStats.playCount + snapshot().pet.careStats.touchCount + snapshot().pet.careStats.restCount) > 0), loadedInitialFallback: snapshot().pet.level === 1 && snapshot().pet.exp === 0 };
+      },
+    };
+    return () => { delete window.__kadomocoE2e; };
   }, []);
 
   if (!loaded) {

@@ -10,6 +10,7 @@ import {
 } from 'electron';
 import Store from 'electron-store';
 import path from 'node:path';
+import fs from 'node:fs';
 
 const WINDOW_SIZE = 180;
 const WINDOW_MIN = 120;
@@ -29,27 +30,42 @@ type StoreSchema = {
 
 type SaveEnvelope = StoreSchema;
 
-const store = new Store<StoreSchema>({
-  name: 'kadomoco-save',
-  defaults: {
-    version: 1,
-    pet: null,
-    settings: { alwaysOnTop: false, volume: 50, statusDisplayMode: 'both', ambientFrequency: 'normal', bubbleFrequency: 'normal', reduceActivityWhenFullscreen: true },
-    windowPosition: null,
-    lastLaunchedAt: 0,
-  },
-});
+const storeDefaults: StoreSchema = {
+  version: 1,
+  pet: null,
+  settings: { alwaysOnTop: false, volume: 50, statusDisplayMode: 'both', ambientFrequency: 'normal', bubbleFrequency: 'normal', reduceActivityWhenFullscreen: true },
+  windowPosition: null,
+  lastLaunchedAt: 0,
+};
 
-const backupStore = new Store<SaveEnvelope>({
-  name: 'kadomoco-save-backup',
-  defaults: {
-    version: 1,
-    pet: null,
-    settings: { alwaysOnTop: false, volume: 50, statusDisplayMode: 'both', ambientFrequency: 'normal', bubbleFrequency: 'normal', reduceActivityWhenFullscreen: true },
-    windowPosition: null,
-    lastLaunchedAt: 0,
-  },
-});
+let store: Store<StoreSchema>;
+let backupStore: Store<SaveEnvelope>;
+
+function quarantineCorruptStoreFile(name: string) {
+  const file = path.join(app.getPath('userData'), `${name}.json`);
+  if (!fs.existsSync(file)) return;
+  try {
+    JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    fs.renameSync(file, path.join(app.getPath('userData'), `${name}.corrupt-${stamp}.json`));
+  }
+}
+
+function createStore(name: string) {
+  quarantineCorruptStoreFile(name);
+  return new Store<StoreSchema>({ name, defaults: storeDefaults });
+}
+
+function initializeStores() {
+  store = createStore('kadomoco-save');
+  backupStore = createStore('kadomoco-save-backup');
+  const primaryIsInitial = store.get('pet') === null && store.get('lastLaunchedAt') === 0;
+  const backupHasData = backupStore.get('pet') !== null || backupStore.get('lastLaunchedAt') !== 0 || backupStore.get('settings').alwaysOnTop || backupStore.get('windowPosition') !== null;
+  if (primaryIsInitial && backupHasData) {
+    store.set(backupStore.store);
+  }
+}
 
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -402,6 +418,7 @@ function registerIpc() {
 }
 
 app.whenReady().then(() => {
+  initializeStores();
   registerIpc();
   createWindow();
   createTray();
