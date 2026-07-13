@@ -23,19 +23,42 @@ function launch({ userDataDir, scenario = 'window', extraEnv = [] } = {}) {
   return { child, userDataDir, removeUserDataDir, getOutput: () => output };
 }
 
-function waitForExit(child, timeout = 5_000) {
+function killProcessTree(child) {
+  if (child.pid === undefined) return;
+  if (process.platform === 'win32') {
+    const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    killer.on('error', () => child.kill('SIGKILL'));
+  } else {
+    child.kill('SIGKILL');
+  }
+}
+
+function waitForExit(child, timeout = 5_000, killGrace = 5_000) {
   if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
   return new Promise((resolve) => {
-    const done = () => { clearTimeout(timer); resolve(); };
-    const timer = setTimeout(() => {
-      if (process.platform === 'win32') {
-        spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
-      } else {
-        child.kill('SIGKILL');
-      }
+    let settled = false;
+    let forceTimer;
+    let fallbackTimer;
+    const cleanup = () => {
+      clearTimeout(forceTimer);
+      clearTimeout(fallbackTimer);
+      child.off('close', done);
+      child.off('exit', done);
+      child.off('error', done);
+    };
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
       resolve();
-    }, timeout);
+    };
     child.once('close', done);
+    child.once('exit', done);
+    child.once('error', done);
+    forceTimer = setTimeout(() => {
+      killProcessTree(child);
+      fallbackTimer = setTimeout(done, killGrace);
+    }, timeout);
     child.kill('SIGTERM');
   });
 }
@@ -106,7 +129,9 @@ test('Electron renderer supports core care and panel flows', { timeout: 25_000 }
   assert.equal(run.result.doubleClickClosedPanel, true);
   assert.equal(run.result.feedUpdatedExpOrStatus, true);
   assert.equal(run.result.cooldownRejected, true);
+  assert.equal(run.result.cooldownBubble, 'ちょっと待って');
   assert.equal(run.result.blockedPlayReasonShown, true);
+  assert.equal(run.result.blockedPlayBubble, 'ちょっと眠い');
   assert.equal(run.result.directBubbleSurvivedAmbientTick, true);
 });
 
