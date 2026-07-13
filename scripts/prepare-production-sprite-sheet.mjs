@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { readPngRgba, writePngRgba } from './png-rgba.mjs';
 
@@ -23,6 +23,7 @@ if (!sourceArg) {
   writeFileSync(decodedSourcePath, Buffer.from(base64, 'base64'));
 }
 
+try {
 const src = readPngRgba(sourcePath);
 const bgSamples = [[0, 0], [src.width - 1, 0], [0, src.height - 1], [src.width - 1, src.height - 1]].map(([x, y]) => {
   const i = (y * src.width + x) * 4;
@@ -104,3 +105,6 @@ for (let y = 0; y < ph; y++) for (let x = 0; x < pw; x++) {
 writePngRgba(previewPath, pw, ph, prev);
 writeFileSync(htmlPath, `<!doctype html><meta charset="utf-8"><title>KadoMoco sprite preview</title><style>body{font-family:sans-serif;background:#222;color:white}.stage{width:256px;height:256px;image-rendering:pixelated;background-image:url('../${outPath}');background-size:1024px 2048px;animation:frames .8s steps(4) infinite;transform-origin:top left}button{margin:4px}@keyframes frames{to{background-position-x:-1024px}}</style><h1>KadoMoco sprite preview</h1><p>Rows: ${rows.join(', ')}</p><div id="buttons"></div><div class="stage" id="stage"></div><script>const rows=${JSON.stringify(rows)};const stage=document.getElementById('stage');document.getElementById('buttons').innerHTML=rows.map((r,i)=>'<button data-row="'+i+'">'+r+'</button>').join('');document.getElementById('buttons').addEventListener('click',e=>{if(e.target.dataset.row)stage.style.backgroundPositionY=(-Number(e.target.dataset.row)*256)+'px';});</script>`);
 console.log(JSON.stringify({ source: sourcePath, output: outPath, background: bg, tolerance: bgTol, rowBands, frames: report }, null, 2));
+} finally {
+  if (!sourceArg) rmSync(decodedSourcePath, { force: true });
+}

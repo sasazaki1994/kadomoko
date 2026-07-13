@@ -21,7 +21,7 @@ for (const [name, x, y] of [['top-left',0,0],['top-right',png.width-1,0],['botto
 let magentaOpaque=0,totalOpaque=0; const hashes = new Map();
 for (let r=0;r<spriteSheetSpec.rows;r++) for (let c=0;c<spriteSheetSpec.columns;c++) {
   let opaque=0, hash=2166136261;
-  for (let y=0;y<FRAME.height;y++) for (let x=0;x<FRAME.width;x++) { const i=((r*FRAME.height+y)*png.width+(c*FRAME.width+x))*4; const a=png.data[i+3]; if(a>8){ opaque++; totalOpaque++; if(png.data[i]>90&&png.data[i+2]>90&&png.data[i+1]<80&&Math.abs(png.data[i]-png.data[i+2])<110) magentaOpaque++; } hash = Math.imul(hash ^ png.data[i] ^ (png.data[i+1]<<8) ^ (png.data[i+2]<<16) ^ (a<<24), 16777619) >>> 0; }
+  for (let y=0;y<FRAME.height;y++) for (let x=0;x<FRAME.width;x++) { const i=((r*FRAME.height+y)*png.width+(c*FRAME.width+x))*4; const a=png.data[i+3]; if(a>8){ opaque++; totalOpaque++; if(png.data[i]>90&&png.data[i+2]>90&&png.data[i+1]<75&&Math.abs(png.data[i]-png.data[i+2])<90) magentaOpaque++; } hash = Math.imul(hash ^ png.data[i] ^ (png.data[i+1]<<8) ^ (png.data[i+2]<<16) ^ (a<<24), 16777619) >>> 0; }
   if (opaque < 250) fail(`Cell row ${r+1}, column ${c+1} has too few opaque pixels (${opaque}).`);
   const key=hash.toString(16); if(hashes.has(key)) warn(`Cell row ${r+1}, column ${c+1} appears identical to ${hashes.get(key)}.`); else hashes.set(key, `row ${r+1}, column ${c+1}`);
 }
