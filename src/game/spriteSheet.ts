@@ -1,9 +1,20 @@
 import spriteSheetSpec from './spriteSheetSpec.json';
 import type { PetMachineState } from './types';
 
+const SPRITE_SHEET_STATES = spriteSheetSpec.states as [
+  'normal',
+  'happy',
+  'hungry',
+  'sleepy',
+  'sleeping',
+  'sulking',
+  'playing',
+  'curious',
+];
+
 export const PET_SPRITE_SHEET = {
   ...spriteSheetSpec,
-  states: ['normal', 'happy', 'hungry', 'sleepy', 'sleeping', 'sulking', 'playing', 'curious'] as const,
+  states: SPRITE_SHEET_STATES,
   animationMs: {
     normal: 980,
     happy: 720,
