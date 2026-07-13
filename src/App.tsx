@@ -88,6 +88,12 @@ export default function App() {
     return () => window.removeEventListener('keydown', closePanelsOnEscape);
   }, []);
 
+  useEffect(() => {
+    if (!import.meta.env.PROD || !window.location.href.startsWith('file:')) return;
+    if (!('__kadomocoE2e' in window)) return;
+    window.__kadomocoE2e.bindStore(usePetStore);
+  }, []);
+
   if (!loaded) {
     return <div className="app-root" />;
   }

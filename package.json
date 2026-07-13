@@ -15,7 +15,8 @@
     "package:win": "npm run build && electron-builder --win --publish=never",
     "dist:win": "npm run package:win",
     "validate:sprite": "node scripts/validate-sprite-sheet.mjs",
-    "test:e2e": "npm run build && node --test e2e/**/*.test.mjs"
+    "test:e2e": "npm run build && node --test e2e/**/*.test.mjs",
+    "verify:package:win": "node scripts/verify-windows-package.mjs"
   },
   "dependencies": {
     "electron-store": "^8.2.0",
