@@ -5,5 +5,15 @@
   "columns": 4,
   "rows": 8,
   "frameWidth": 64,
-  "frameHeight": 64
+  "frameHeight": 64,
+  "states": [
+    "normal",
+    "happy",
+    "hungry",
+    "sleepy",
+    "sleeping",
+    "sulking",
+    "playing",
+    "curious"
+  ]
 }

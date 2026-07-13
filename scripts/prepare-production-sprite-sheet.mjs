@@ -1,6 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { readPngRgba, writePngRgba } from './png-rgba.mjs';
+
+const spriteSheetSpec = JSON.parse(readFileSync(join(process.cwd(), 'src/game/spriteSheetSpec.json'), 'utf8'));
 
 const embeddedSourcePath = 'assets/source/kadomoco-generated-magenta.png.base64';
 const decodedSourcePath = '.tmp-sprite-source.png';
@@ -9,10 +11,12 @@ const sourcePath = sourceArg ?? decodedSourcePath;
 const outPath = 'src/assets/pet/pixel/kadomoco_sheet.png';
 const previewPath = 'artifacts/kadomoco_sheet_preview.png';
 const htmlPath = 'artifacts/kadomoco_sprite_preview.html';
-const rows = ['normal', 'happy', 'hungry', 'sleepy', 'sleeping', 'sulking', 'playing', 'curious'];
-const cols = 4;
-const rowCount = 8;
-const cell = 64;
+const rows = spriteSheetSpec.states;
+const cols = spriteSheetSpec.columns;
+const rowCount = spriteSheetSpec.rows;
+const cell = spriteSheetSpec.frameWidth;
+if (!Array.isArray(rows) || rows.length !== rowCount) throw new Error(`spriteSheetSpec.states must define ${rowCount} rows.`);
+if (spriteSheetSpec.frameWidth !== spriteSheetSpec.frameHeight) throw new Error('Sprite preparation expects square frames.');
 
 mkdirSync(dirname(outPath), { recursive: true });
 mkdirSync('artifacts', { recursive: true });

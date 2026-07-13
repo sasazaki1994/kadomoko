@@ -57,25 +57,37 @@ npm run dev
 - 透明・フレームレス・小型 Electron ウィンドウ
 - セーブデータのサニタイズ、段階移行、バックアップ復旧
 
-## スプライト差し替え仕様
+## スプライト生成・検証仕様
 
-現在の `src/assets/pet/pixel/kadomoco_sheet.png` はプレースホルダーです。正式素材は次の仕様で同じパスへ配置してください。
+`src/assets/pet/pixel/kadomoco_sheet.png` は、正式素材の入力ファイル `assets/source/kadomoco-generated-magenta.png.base64` から生成する本番用スプライトシートです。生成 PNG は直接編集せず、見た目を変える場合は入力素材または `scripts/prepare-production-sprite-sheet.mjs` の生成処理を更新してください。
 
-- 透過 PNG
-- 256×512px
-- 4列×8行
-- 1フレーム 64×64px
-- 各状態 4フレーム
+- 生成元: `assets/source/kadomoco-generated-magenta.png.base64`
+- 生成先: `src/assets/pet/pixel/kadomoco_sheet.png`
+- プレビュー成果物: `artifacts/kadomoco_sheet_preview.png` / `artifacts/kadomoco_sprite_preview.html`
+- PNG 形式: RGBA 透過 PNG
+- 寸法: 256×512px
+- グリッド: 4列×8行、1フレーム 64×64px、全32フレーム
+- 各状態: 4フレーム
 - 行順: `normal` / `happy` / `hungry` / `sleepy` / `sleeping` / `sulking` / `playing` / `curious`
 
-差し替え後は以下を実行します。
+生成と検証は以下で実行します。
 
 ```bash
+npm run prepare:sheet
 npm run validate:sprite
-npm run build
 ```
 
-`validate:sprite` はファイル存在、PNG シグネチャ、256×512px を検査します。本番ビルドでは Vite の asset import によりスプライトが `dist/assets/` へ含まれます。素材が読み込めない場合も CSS フォールバック表示で起動できます。
+`npm run build` は `prepare:sheet` と `validate:sprite:check` を先に実行してから型チェックと Vite 本番ビルドを行うため、配布用アセットはビルド時にも再生成・再検証されます。本番ビルドでは Vite の asset import によりスプライトが `dist/assets/` へ含まれます。アプリ側の表示は `image-rendering: pixelated` を指定した `PetCharacter` のスプライト表示を優先し、素材が読み込めない場合のみ CSS フォールバックへ切り替わります。
+
+`validate:sprite` は `prepare:sheet` 実行後に以下を検査します。
+
+- ファイル存在、PNG 読み込み、RGBA PNG（color type 6）であること
+- 256×512px、4列×8行、64×64px セルであること
+- 四隅が透明で、全32セルが空でないこと
+- 透明背景化後に不透明なマゼンタ背景色が過剰に残っていないこと
+- 完全に同一のセルがある場合は警告すること
+
+入力素材を差し替える場合は、マゼンタ背景の PNG を base64 化して `assets/source/kadomoco-generated-magenta.png.base64` を更新し、`npm run prepare:sheet` で生成結果と `artifacts/` のプレビューを確認してから `npm run validate:sprite` と `npm run build` を実行してください。行順やセル寸法を変更する場合は、`src/game/spriteSheetSpec.json`、生成処理、実装側の状態マッピング、README を同時に更新してください。
 
 ## セーブデータ
 
