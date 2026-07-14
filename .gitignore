@@ -7,3 +7,6 @@ release/
 .DS_Store
 artifacts/
 .tmp-sprite-source.png
+
+# Generated release assets
+build/
