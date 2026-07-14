@@ -1,0 +1,49 @@
+name: Bug report
+about: Report a KadoMoco problem
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve KadoMoco. Do not attach raw save files or screenshots containing personal information.
+  - type: input
+    id: version
+    attributes: { label: KadoMoco version, placeholder: "0.1.0" }
+    validations: { required: true }
+  - type: input
+    id: windows-version
+    attributes: { label: Windows version, placeholder: "Windows 11 23H2" }
+    validations: { required: true }
+  - type: dropdown
+    id: package-type
+    attributes:
+      label: Package type
+      options: [NSIS installer, ZIP package, Development build]
+    validations: { required: true }
+  - type: input
+    id: scaling
+    attributes: { label: Display scaling, placeholder: "100%, 125%, 150%" }
+  - type: input
+    id: monitors
+    attributes: { label: Monitor count, placeholder: "1 / 2 / 3" }
+  - type: textarea
+    id: actual
+    attributes: { label: What happened? }
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes: { label: What did you expect? }
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes: { label: Reproduction steps, placeholder: "1. ...\n2. ...\n3. ..." }
+    validations: { required: true }
+  - type: textarea
+    id: logs
+    attributes: { label: Logs or screenshots, description: "Remove personal information before uploading. Do not paste raw save data." }
+  - type: dropdown
+    id: save-related
+    attributes:
+      label: Is this related to save data?
+      options: [No, Yes, Unsure]
+    validations: { required: true }

@@ -103,7 +103,7 @@ npm run package:win
 
 `release/` に NSIS インストーラーと ZIP を生成します。設定は `package.json` の `build` セクションで管理します。
 
-正式アイコンが用意できたら `build/icon.ico` を追加し、`package.json` の `build.win.icon` でそのパスを指定してください。現時点では未指定で、トレイアイコンはコード生成のプレースホルダーです。
+Windows ビルドは `build/icon.ico` をアプリ／インストーラーアイコンとして使用し、`build/tray-icon.png` を `extraResources` として同梱してトレイアイコンに使用します。
 
 配布前チェック:
 
@@ -119,3 +119,45 @@ npm run package:win
 ## 開発者 UI
 
 開発起動時のみ左上の `D` ボタンから DevTools パネルを開けます。本番ビルドでは表示されません。
+
+## v0.1.0 Release Candidate resources
+
+- Install / uninstall guide: [`docs/install-and-uninstall.md`](docs/install-and-uninstall.md)
+- Release notes: [`docs/release-notes-v0.1.0.md`](docs/release-notes-v0.1.0.md)
+- Changelog: [`CHANGELOG.md`](CHANGELOG.md)
+- License decision status: [`docs/licensing-decision.md`](docs/licensing-decision.md)
+- Credits: [`CREDITS.md`](CREDITS.md)
+- Third-party notices: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
+- Bug reports: use the GitHub issue template and avoid attaching raw save data or personal information.
+
+## App icon generation
+
+Official app icons are generated from the first `normal` frame in `src/assets/pet/pixel/kadomoco_sheet.png`.
+
+```bash
+npm run generate:icons
+npm run validate:icons
+```
+
+Generated outputs are intentionally ignored by Git and should be regenerated in CI/build jobs instead of committed as binary files:
+
+- `build/icon.ico` for Windows app and installer packaging
+- `build/tray-icon.png` for the Electron tray in development and packaged builds
+- `build/icon.png` for README and release pages
+
+The icon validator checks file presence, non-empty files, PNG transparency, ICO structure and sizes, Electron-builder-compatible PNG-backed ICO entries, and absence of opaque development magenta.
+
+## Third-party notices
+
+Production dependency notices are generated from `package-lock.json` plus installed package metadata:
+
+```bash
+npm run licenses:generate
+npm run licenses:validate
+```
+
+Unknown dependency licenses fail validation and must be resolved before release.
+
+## Release workflow
+
+`.github/workflows/release.yml` runs on `v*.*.*` tags or manual dispatch. It validates that the tag name matches `package.json` (`v0.1.0`), runs sprite, icon, license, typecheck, lint, unit, build, Electron E2E, Windows packaging, and package verification, generates SHA-256 checksum files for the EXE and ZIP, then creates a **Draft** GitHub Release with the artifacts and release notes attached. The workflow uses `contents: write` only because `gh release create` needs permission to create the draft release and upload assets. It does not publish the release automatically and this change does not create a tag.

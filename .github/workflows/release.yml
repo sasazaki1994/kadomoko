@@ -1,0 +1,62 @@
+name: Draft Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to validate and draft, for example v0.1.0'
+        required: true
+        type: string
+
+permissions:
+  contents: write # required only to create the draft GitHub Release and upload assets with gh CLI
+
+jobs:
+  windows-draft-release:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ env.RELEASE_TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check:release-version -- $env:RELEASE_TAG
+      - run: npm run validate:sprite
+      - run: npm run generate:icons
+      - run: npm run validate:icons
+      - run: npm run licenses:validate
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
+      - run: npm run test:e2e
+      - run: npm run package:win
+      - run: npm run verify:package:win
+      - name: Generate SHA-256 checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem release -Filter 'KadoMoco-*.exe','KadoMoco-*.zip' | ForEach-Object {
+            $hash = Get-FileHash $_.FullName -Algorithm SHA256
+            "$($hash.Hash.ToLower())  $($_.Name)" | Set-Content -Encoding ascii "$($_.FullName).sha256"
+          }
+      - name: Create draft release and upload assets
+        shell: pwsh
+        run: |
+          gh release create $env:RELEASE_TAG `
+            --draft `
+            --title "KadoMoco $env:RELEASE_TAG" `
+            --notes-file docs/release-notes-v0.1.0.md `
+            release/KadoMoco-*.exe `
+            release/KadoMoco-*.zip `
+            release/KadoMoco-*.sha256 `
+            docs/release-notes-v0.1.0.md

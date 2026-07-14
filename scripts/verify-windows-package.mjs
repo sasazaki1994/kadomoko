@@ -36,6 +36,8 @@ export function verifyWindowsPackage({ cwd = process.cwd(), listEntries = listAs
   const appRoot = rootEntries.includes('KadoMoco.exe') ? extractDir : join(extractDir, rootEntries[0] ?? '');
   assert.ok(existsSync(join(appRoot, 'KadoMoco.exe')), 'ZIP must contain KadoMoco.exe');
   assert.ok(existsSync(join(appRoot, 'resources')), 'ZIP must contain resources directory');
+  assert.ok(existsSync(join(appRoot, 'resources', 'tray-icon.png')), 'ZIP must contain resources/tray-icon.png');
+  assert.ok(statSync(join(appRoot, 'resources', 'tray-icon.png')).size > 0, 'resources/tray-icon.png must not be empty');
   const appAsarPath = join(appRoot, 'resources', 'app.asar');
   assert.ok(existsSync(appAsarPath), 'ZIP must contain resources/app.asar');
 

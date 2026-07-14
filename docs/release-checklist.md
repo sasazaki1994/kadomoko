@@ -3,6 +3,12 @@
 ## 自動確認
 
 - [ ] `npm ci` で依存関係をクリーンインストールできる
+- [ ] `npm run generate:icons` で正式アイコンを再生成できる
+- [ ] `npm run validate:icons` で正式アイコンを検証できる
+- [ ] `build/` 配下の生成済みアイコンバイナリをコミットしていない
+- [ ] `npm run licenses:generate` で第三者表記を再生成できる
+- [ ] `npm run licenses:validate` で第三者ライセンス表記を検証できる
+- [ ] `npm run check:release-version -- v0.1.0` でタグと package.json の整合性を検証できる
 - [ ] `npm run typecheck` が成功する
 - [ ] `npm run lint` が成功する
 - [ ] `npm run test` が成功する
@@ -69,3 +75,6 @@
 - [ ] ライセンス表記が含まれる
 - [ ] クレジット表記が含まれる
 - [ ] リリースノートが準備されている
+- [ ] GitHub Actions の Draft Release workflow が EXE / ZIP / SHA-256 / release notes を添付できる
+- [ ] v0.1.0 タグを作成する前に `package.json` の version と一致している
+- [ ] リポジトリ所有者が配布ライセンスを決定し、LICENSE / README / release notes / notices に反映している（未決定の間は公開ブロッカー）

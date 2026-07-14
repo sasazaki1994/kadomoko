@@ -132,8 +132,7 @@ function writeBackup() {
   backupStore.set(currentPrimarySave());
 }
 
-function createTrayIcon() {
-  // Draw a small pale round blob programmatically so no image asset is needed.
+function createFallbackTrayIcon() {
   const size = 16;
   const buffer = Buffer.alloc(size * size * 4);
   const cx = size / 2 - 0.5;
@@ -144,7 +143,6 @@ function createTrayIcon() {
       const i = (y * size + x) * 4;
       const dist = Math.hypot(x - cx, y - cy);
       if (dist <= radius) {
-        // BGRA: pale warm beige body.
         buffer[i] = 0xc8;
         buffer[i + 1] = 0xe0;
         buffer[i + 2] = 0xf2;
@@ -154,11 +152,7 @@ function createTrayIcon() {
       }
     }
   }
-  // Simple dark eyes.
-  for (const [ex, ey] of [
-    [5, 7],
-    [10, 7],
-  ]) {
+  for (const [ex, ey] of [[5, 7], [10, 7]]) {
     const i = (ey * size + ex) * 4;
     buffer[i] = 0x55;
     buffer[i + 1] = 0x4a;
@@ -166,6 +160,25 @@ function createTrayIcon() {
     buffer[i + 3] = 0xff;
   }
   return nativeImage.createFromBitmap(buffer, { width: size, height: size });
+}
+
+function resolveTrayIconPath() {
+  const candidates = app.isPackaged
+    ? [path.join(process.resourcesPath, 'tray-icon.png')]
+    : [path.join(process.cwd(), 'build', 'tray-icon.png')];
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
+function createTrayIcon() {
+  const iconPath = resolveTrayIconPath();
+  if (iconPath) {
+    const image = nativeImage.createFromPath(iconPath);
+    if (!image.isEmpty()) return image;
+    console.warn(`Tray icon file could not be decoded: ${iconPath}`);
+  } else {
+    console.warn('Tray icon file was not found; using fallback tray icon.');
+  }
+  return createFallbackTrayIcon();
 }
 
 function updateTrayMenu() {
