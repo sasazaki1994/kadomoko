@@ -78,3 +78,18 @@
 - [ ] GitHub Actions の Draft Release workflow が EXE / ZIP / SHA-256 / release notes を添付できる
 - [ ] v0.1.0 タグを作成する前に `package.json` の version と一致している
 - [ ] リポジトリ所有者が配布ライセンスを決定し、LICENSE / README / release notes / notices に反映している（未決定の間は公開ブロッカー）
+
+## RC Qualification Kit
+
+- [ ] Actions > RC Qualification を `ref=main` または検証対象コミットで手動実行する
+- [ ] workflow が GitHub Release / tag / issue / PR を作成していないことを確認する
+- [ ] `kadomoco-windows-rc-<version>-<short-sha>` artifact をダウンロードする
+- [ ] EXE / ZIP / `.sha256` / `rc-manifest.json` / QAテンプレートが含まれることを確認する
+- [ ] PowerShell の `Get-FileHash -Algorithm SHA256` で `.sha256` と `rc-manifest.json` の値を照合する
+- [ ] `scripts/windows-rc-qa.ps1` を管理者権限なしで実行し、JSON結果を保存する
+- [ ] `docs/qa/windows-rc-test-plan.md` に沿ってWindows実機QAを実施する
+- [ ] `docs/qa/windows-rc-result-template.md` に結果を記録する
+- [ ] `docs/qa/release-decision-template.md` で GO / GO WITH KNOWN LIMITATIONS / NO-GO を判定する
+- [ ] `node scripts/check-project-license.mjs --require` が成功するまで、ライセンス未決定を公開ブロッカーとして扱う
+
+RC Qualification workflow はタグなしで成果物を作る検証用です。Draft Release workflow は `v*.*.*` タグまたは指定タグを対象にドラフトGitHub Releaseを作るためのもので、公開前の最終段階でのみ使用します。

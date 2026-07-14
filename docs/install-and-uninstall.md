@@ -37,3 +37,29 @@ v0.1.0 is prepared before code signing. Windows SmartScreen may warn that the ap
 - SmartScreen reputation is not established.
 - Public distribution is blocked until the repository owner chooses a project license.
 - Windows real-device QA is still required for scaling, monitor changes, tray behavior, install, uninstall, and save retention.
+
+## RC artifact verification
+
+RC artifacts are produced by the manual **RC Qualification** workflow, not by a GitHub Release. Download `kadomoco-windows-rc-<version>-<short-sha>` from the workflow run and extract it locally.
+
+Verify SHA-256 checksums before installing or launching:
+
+```powershell
+Get-FileHash .\KadoMoco-0.1.0-x64.exe -Algorithm SHA256
+Get-FileHash .\KadoMoco-0.1.0-x64.zip -Algorithm SHA256
+Get-Content .\KadoMoco-0.1.0-x64.exe.sha256
+Get-Content .\KadoMoco-0.1.0-x64.zip.sha256
+```
+
+Run the QA helper from a checkout of the same source revision:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/windows-rc-qa.ps1 `
+  -ArtifactDirectory .\release `
+  -ReportPath .\qa-results\windows-rc-result.json `
+  -LaunchSmoke
+```
+
+The helper does not require administrator privileges, does not uninstall or delete files, and does not intentionally modify existing saves. `NotSigned` is recorded as a warning for v0.1.0 RC builds; signature states such as hash mismatch or untrusted signatures are failures.
+
+Record manual results with `docs/qa/windows-rc-result-template.md` and make the final release decision with `docs/qa/release-decision-template.md`. Public release remains blocked until the project license is decided and reflected in LICENSE, README, package metadata, and release notes.
