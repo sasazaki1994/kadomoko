@@ -1,5 +1,5 @@
-import { appendFileSync, existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { appendFileSync, existsSync, readFileSync, realpathSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export function checkProjectLicense({ cwd = process.cwd() } = {}) {
@@ -16,12 +16,19 @@ export function checkProjectLicense({ cwd = process.cwd() } = {}) {
   return { ok: decided, status: decided ? 'decided' : 'undecided', checks };
 }
 
+function isCliEntryPoint() {
+  if (!process.argv[1]) return false;
+  const invokedPath = realpathSync.native(resolve(process.argv[1]));
+  const modulePath = realpathSync.native(fileURLToPath(import.meta.url));
+  return process.platform === 'win32' ? invokedPath.toLowerCase() === modulePath.toLowerCase() : invokedPath === modulePath;
+}
+
 function parseMode(argv) {
   if (argv.includes('--require')) return 'require';
   return 'warn';
 }
 
-if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isCliEntryPoint()) {
   const mode = parseMode(process.argv.slice(2));
   const result = checkProjectLicense();
   console.log(JSON.stringify({ mode, ...result }, null, 2));

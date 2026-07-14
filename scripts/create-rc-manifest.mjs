@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
@@ -57,14 +57,22 @@ export function createRcManifest({
   };
 }
 
+function isCliEntryPoint() {
+  if (!process.argv[1]) return false;
+  const invokedPath = realpathSync.native(resolve(process.argv[1]));
+  const modulePath = realpathSync.native(fileURLToPath(import.meta.url));
+  return process.platform === 'win32' ? invokedPath.toLowerCase() === modulePath.toLowerCase() : invokedPath === modulePath;
+}
+
 export function writeRcManifest(options = {}) {
   const manifest = createRcManifest(options);
   const outputPath = options.outputPath ?? join(options.releaseDir ?? join(options.cwd ?? process.cwd(), 'release'), 'rc-manifest.json');
+  mkdirSync(dirname(outputPath), { recursive: true });
   writeFileSync(outputPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   return manifest;
 }
 
-if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isCliEntryPoint()) {
   const outputArg = process.argv.indexOf('--output');
   writeRcManifest({ outputPath: outputArg >= 0 ? process.argv[outputArg + 1] : undefined });
 }
