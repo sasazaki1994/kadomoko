@@ -161,3 +161,32 @@ Unknown dependency licenses fail validation and must be resolved before release.
 ## Release workflow
 
 `.github/workflows/release.yml` runs on `v*.*.*` tags or manual dispatch. It validates that the tag name matches `package.json` (`v0.1.0`), runs sprite, icon, license, typecheck, lint, unit, build, Electron E2E, Windows packaging, and package verification, generates SHA-256 checksum files for the EXE and ZIP, then creates a **Draft** GitHub Release with the artifacts and release notes attached. The workflow uses `contents: write` only because `gh release create` needs permission to create the draft release and upload assets. It does not publish the release automatically and this change does not create a tag.
+
+## RC Qualification workflow
+
+Use **Actions > RC Qualification** to qualify a branch, commit, or tag without creating a Git tag, GitHub Release, issue, or PR. Inputs are:
+
+- `ref`: target branch, commit, or tag; default `main`.
+- `artifact-retention-days`: uploaded artifact retention; default `14`.
+- `run-e2e`: whether to run Electron E2E; default `true`.
+
+The workflow uploads `kadomoco-windows-rc-<version>-<short-sha>` containing the Windows NSIS EXE, ZIP, `.sha256` files, `rc-manifest.json`, and a QA result template. This differs from the Draft Release workflow: RC Qualification is for private qualification artifacts only, while Draft Release validates a version tag and creates a draft GitHub Release.
+
+After downloading the RC artifact, verify checksums on Windows PowerShell:
+
+```powershell
+Get-FileHash .\KadoMoco-0.1.0-x64.exe -Algorithm SHA256
+Get-FileHash .\KadoMoco-0.1.0-x64.zip -Algorithm SHA256
+```
+
+Run the Windows QA helper without administrator privileges:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/windows-rc-qa.ps1 `
+  -ArtifactDirectory .\release `
+  -ReportPath .\qa-results\windows-rc-result.json
+```
+
+Add `-LaunchSmoke` only when you want to confirm the ZIP app process starts and does not immediately exit; the script does not force-terminate the app. Use [`docs/qa/windows-rc-test-plan.md`](docs/qa/windows-rc-test-plan.md), [`docs/qa/windows-rc-result-template.md`](docs/qa/windows-rc-result-template.md), and [`docs/qa/release-decision-template.md`](docs/qa/release-decision-template.md) for manual QA and release judgement.
+
+The project distribution license is still undecided. `scripts/check-project-license.mjs --warn` allows RC artifact generation, but `--require` must fail and remain a public-release blocker until the owner chooses a license and updates the repository metadata.

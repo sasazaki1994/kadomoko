@@ -312,3 +312,30 @@ Feature: KadoMoco desktop pet
     Then the app is launched with an E2E-only sandbox workaround
     And normal production launches keep their default sandbox behavior
     And early Electron exits report stderr and the exit status without waiting for the full scenario timeout
+
+Feature: v0.1.0 RC qualification kit
+  Release managers need reproducible Windows RC artifacts without publishing a GitHub Release.
+
+  Scenario: Manual RC workflow produces qualification artifacts without release side effects
+    Given a maintainer starts the RC Qualification workflow for a branch, commit, or tag
+    When the workflow completes successfully
+    Then it uploads Windows EXE and ZIP artifacts
+    And it uploads SHA-256 checksum files
+    And it uploads an rc-manifest.json with per-artifact hashes and sizes
+    And it uploads a Windows QA result template
+    And it does not create a tag, GitHub Release, issue, or pull request
+
+  Scenario: Windows RC QA helper records warnings without touching user saves
+    Given a tester has extracted an RC artifact directory on Windows
+    When the tester runs scripts/windows-rc-qa.ps1 without administrator privileges
+    Then the script verifies artifact presence, versions, hashes, ZIP contents, and signature status
+    And NotSigned is recorded as a warning for v0.1.0
+    And the script writes a UTF-8 JSON report
+    And the script does not uninstall the app, delete files, or intentionally modify existing save data
+
+  Scenario: Undecided project license blocks public release but not RC generation
+    Given the project distribution license has not been chosen by the owner
+    When the license checker runs in warn mode
+    Then it reports the undecided license without failing RC artifact generation
+    When the license checker runs in require mode
+    Then it fails the public release readiness check
