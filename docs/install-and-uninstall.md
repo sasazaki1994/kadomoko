@@ -19,13 +19,13 @@ Closing the window hides KadoMoco to the tray. To fully exit, use the tray menu 
 
 ## Save data location
 
-KadoMoco uses Electron's `userData` directory. On Windows this is normally under `%APPDATA%\\KadoMoco`. The primary save is `kadomoco-save.json`; backup data is stored in `kadomoco-save-backup.json`.
+KadoMoco uses Electron's `userData` directory. On Windows this is normally under `%APPDATA%\KadoMoco`. The primary save is `kadomoco-save.json`; backup data is stored in `kadomoco-save-backup.json`.
 
 ## Uninstall behavior
 
 The current NSIS configuration keeps app data on uninstall (`deleteAppDataOnUninstall: false`). This means uninstalling KadoMoco does not automatically delete saves.
 
-To manually remove saves after uninstalling, delete the KadoMoco user data folder, normally `%APPDATA%\\KadoMoco`. Do not publish this folder or save JSON files in bug reports because they may contain personal usage history.
+To manually remove saves after uninstalling, delete the KadoMoco user data folder, normally `%APPDATA%\KadoMoco`. Do not publish this folder or save JSON files in bug reports because they may contain personal usage history.
 
 ## SmartScreen and code signing
 

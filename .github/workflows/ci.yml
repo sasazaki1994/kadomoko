@@ -24,7 +24,7 @@ jobs:
       - run: npm run generate:icons
       - run: npm run validate:icons
       - run: npm run licenses:validate
-      - run: npm run check:release-version -- v0.1.0
+      - run: npm run check:release-version
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test

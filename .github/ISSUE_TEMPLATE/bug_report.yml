@@ -28,11 +28,11 @@ body:
     attributes: { label: Monitor count, placeholder: "1 / 2 / 3" }
   - type: textarea
     id: actual
-    attributes: { label: What happened? }
+    attributes: { label: "What happened?" }
     validations: { required: true }
   - type: textarea
     id: expected
-    attributes: { label: What did you expect? }
+    attributes: { label: "What did you expect?" }
     validations: { required: true }
   - type: textarea
     id: steps

@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readPngRgba, writePngRgba } from './png-rgba.mjs';
 
@@ -39,7 +39,7 @@ for (const size of sizes) {
   const data = makeIcon(size);
   const pngPath = join(outDir, `icon-${size}.png`);
   writePngRgba(pngPath, size, size, data);
-  pngs.push({ size, data: Buffer.from(await import('node:fs').then(fs => fs.readFileSync(pngPath))) });
+  pngs.push({ size, data: readFileSync(pngPath) });
 }
 writePngRgba(join(outDir, 'icon.png'), 256, 256, makeIcon(256));
 writePngRgba(join(outDir, 'tray-icon.png'), 32, 32, makeIcon(32));

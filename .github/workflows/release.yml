@@ -45,7 +45,7 @@ jobs:
       - name: Generate SHA-256 checksums
         shell: pwsh
         run: |
-          Get-ChildItem release -Filter 'KadoMoco-*.exe','KadoMoco-*.zip' | ForEach-Object {
+          Get-ChildItem -Path 'release/KadoMoco-*.exe', 'release/KadoMoco-*.zip' | ForEach-Object {
             $hash = Get-FileHash $_.FullName -Algorithm SHA256
             "$($hash.Hash.ToLower())  $($_.Name)" | Set-Content -Encoding ascii "$($_.FullName).sha256"
           }
@@ -58,5 +58,4 @@ jobs:
             --notes-file docs/release-notes-v0.1.0.md `
             release/KadoMoco-*.exe `
             release/KadoMoco-*.zip `
-            release/KadoMoco-*.sha256 `
-            docs/release-notes-v0.1.0.md
+            release/KadoMoco-*.sha256
