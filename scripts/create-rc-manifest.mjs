@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 
@@ -63,7 +64,7 @@ export function writeRcManifest(options = {}) {
   return manifest;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
   const outputArg = process.argv.indexOf('--output');
   writeRcManifest({ outputPath: outputArg >= 0 ? process.argv[outputArg + 1] : undefined });
 }

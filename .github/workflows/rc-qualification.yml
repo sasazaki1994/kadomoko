@@ -35,12 +35,14 @@ jobs:
           node-version: 22
           cache: npm
       - shell: pwsh
+        env:
+          INPUT_REF: ${{ inputs.ref }}
         run: |
           $pkg = Get-Content package.json -Raw | ConvertFrom-Json
           $short = (git rev-parse --short=7 HEAD).Trim()
           "APP_VERSION=$($pkg.version)" | Out-File -FilePath $env:GITHUB_ENV -Append
           "SHORT_SHA=$short" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "RC_SOURCE_REF=${{ inputs.ref }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "RC_SOURCE_REF=$env:INPUT_REF" | Out-File -FilePath $env:GITHUB_ENV -Append
       - run: npm ci
       - run: npm run validate:sprite
       - run: npm run generate:icons

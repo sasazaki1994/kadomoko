@@ -1,5 +1,6 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export function checkProjectLicense({ cwd = process.cwd() } = {}) {
   const read = (file) => existsSync(join(cwd, file)) ? readFileSync(join(cwd, file), 'utf8') : '';
@@ -20,12 +21,11 @@ function parseMode(argv) {
   return 'warn';
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
   const mode = parseMode(process.argv.slice(2));
   const result = checkProjectLicense();
   console.log(JSON.stringify({ mode, ...result }, null, 2));
   if (process.env.GITHUB_STEP_SUMMARY) {
-    const { appendFileSync } = await import('node:fs');
     appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Project license check\n\n\`\`\`json\n${JSON.stringify({ mode, ...result }, null, 2)}\n\`\`\`\n`);
   }
   if (mode === 'require' && !result.ok) process.exit(1);
