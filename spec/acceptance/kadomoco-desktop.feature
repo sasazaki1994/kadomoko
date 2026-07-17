@@ -341,8 +341,8 @@ Feature: v0.1.0 RC qualification kit
     And Windows packages contain LICENSE and THIRD_PARTY_NOTICES.md in resources
     And third-party licenses are not represented as licenses for KadoMoco itself
 
-  Scenario: Asset preparation restores a damaged committed sprite deterministically
-    Given the committed production sprite is missing or damaged
+  Scenario: Asset preparation restores a damaged production sprite deterministically
+    Given the production sprite is missing or damaged
     And the canonical Base64 sprite source is valid
     When the developer runs "npm run prepare:assets"
     Then the production sprite is regenerated from the canonical source
