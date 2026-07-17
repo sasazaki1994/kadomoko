@@ -77,7 +77,7 @@
 - [ ] リリースノートが準備されている
 - [ ] GitHub Actions の Draft Release workflow が EXE / ZIP / SHA-256 / release notes を添付できる
 - [ ] v0.1.0 タグを作成する前に `package.json` の version と一致している
-- [ ] リポジトリ所有者が配布ライセンスを決定し、LICENSE / README / release notes / notices に反映している（未決定の間は公開ブロッカー）
+- [ ] `npm run license:project -- --require` でプロジェクトライセンス方針を検証できる
 
 ## RC Qualification Kit
 
