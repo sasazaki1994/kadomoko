@@ -20,9 +20,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run validate:sprite
-      - run: npm run generate:icons
-      - run: npm run validate:icons
+      - run: npm run prepare:assets
       - run: npm run licenses:validate
       - run: npm run license:project -- --require
       - run: npm run check:release-version
@@ -48,8 +46,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run generate:icons
-      - run: npm run validate:icons
+      - run: npm run prepare:assets
       - run: npm run licenses:validate
       - run: npm run license:project -- --require
       - run: npm run typecheck

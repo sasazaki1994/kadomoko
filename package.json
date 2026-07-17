@@ -7,7 +7,8 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "npm run prepare:sheet && npm run validate:sprite:check && npm run generate:icons && npm run validate:icons && tsc --noEmit && vite build",
+    "predev": "npm run validate:sprite",
+    "build": "npm run prepare:assets && tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -20,13 +21,15 @@
     "verify:package:win": "node scripts/verify-windows-package.mjs",
     "prepare:sheet": "node scripts/prepare-production-sprite-sheet.mjs",
     "validate:sprite:check": "node scripts/validate-sprite-sheet.mjs",
-    "generate:icons": "node scripts/generate-app-icons.mjs",
+    "generate:icons": "npm run prepare:sheet && npm run validate:sprite:check && npm run generate:icons:raw",
     "validate:icons": "node scripts/validate-app-icons.mjs",
     "licenses:generate": "node scripts/generate-third-party-notices.mjs",
     "licenses:validate": "node scripts/validate-third-party-notices.mjs",
     "check:release-version": "node scripts/check-release-version.mjs",
     "manifest:rc": "node scripts/create-rc-manifest.mjs",
-    "license:project": "node scripts/check-project-license.mjs"
+    "license:project": "node scripts/check-project-license.mjs",
+    "generate:icons:raw": "node scripts/generate-app-icons.mjs",
+    "prepare:assets": "npm run prepare:sheet && npm run validate:sprite:check && npm run generate:icons:raw && npm run validate:icons"
   },
   "dependencies": {
     "electron-store": "^8.2.0",

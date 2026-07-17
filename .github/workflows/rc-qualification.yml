@@ -44,9 +44,7 @@ jobs:
           "SHORT_SHA=$short" | Out-File -FilePath $env:GITHUB_ENV -Append
           "RC_SOURCE_REF=$env:INPUT_REF" | Out-File -FilePath $env:GITHUB_ENV -Append
       - run: npm ci
-      - run: npm run validate:sprite
-      - run: npm run generate:icons
-      - run: npm run validate:icons
+      - run: npm run prepare:assets
       - run: npm run licenses:validate
       - run: npm run license:project -- --require
       - run: npm run typecheck
