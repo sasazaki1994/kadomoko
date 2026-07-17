@@ -1,16 +1,18 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { readPngRgba, writePngRgba } from './png-rgba.mjs';
 
-const spriteSheetSpec = JSON.parse(readFileSync(join(process.cwd(), 'src/game/spriteSheetSpec.json'), 'utf8'));
+const specPath = process.env.SPRITE_SPEC_PATH ?? 'src/game/spriteSheetSpec.json';
+const spriteSheetSpec = JSON.parse(readFileSync(resolve(process.cwd(), specPath), 'utf8'));
 
-const embeddedSourcePath = 'assets/source/kadomoco-generated-magenta.png.base64';
+const embeddedSourcePath = process.env.SPRITE_SOURCE_BASE64_PATH ?? 'assets/source/kadomoco-generated-magenta.png.base64';
 const decodedSourcePath = '.tmp-sprite-source.png';
 const sourceArg = process.argv[2];
 const sourcePath = sourceArg ?? decodedSourcePath;
-const outPath = 'src/assets/pet/pixel/kadomoco_sheet.png';
-const previewPath = 'artifacts/kadomoco_sheet_preview.png';
-const htmlPath = 'artifacts/kadomoco_sprite_preview.html';
+const outPath = process.env.SPRITE_SHEET_PATH ?? 'src/assets/pet/pixel/kadomoco_sheet.png';
+const artifactDir = process.env.SPRITE_ARTIFACT_DIR ?? 'artifacts';
+const previewPath = join(artifactDir, 'kadomoco_sheet_preview.png');
+const htmlPath = join(artifactDir, 'kadomoco_sprite_preview.html');
 const rows = spriteSheetSpec.states;
 const cols = spriteSheetSpec.columns;
 const rowCount = spriteSheetSpec.rows;
@@ -19,7 +21,7 @@ if (!Array.isArray(rows) || rows.length !== rowCount) throw new Error(`spriteShe
 if (spriteSheetSpec.frameWidth !== spriteSheetSpec.frameHeight) throw new Error('Sprite preparation expects square frames.');
 
 mkdirSync(dirname(outPath), { recursive: true });
-mkdirSync('artifacts', { recursive: true });
+mkdirSync(artifactDir, { recursive: true });
 
 if (!sourceArg) {
   if (!existsSync(embeddedSourcePath)) throw new Error(`${embeddedSourcePath} does not exist.`);

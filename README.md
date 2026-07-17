@@ -196,3 +196,14 @@ KadoMoco is proprietary software. Copyright © 2026 sasazaki1994. All Rights Res
 Public access to this repository—and GitHub's ordinary repository viewing or forking functionality—does not grant permission to reuse the copyrighted work. Publishing or selling forked code as another product, or copying, modifying, redistributing, selling, or using KadoMoco code, assets, names, logos, or brand elements in another product without prior express written permission is prohibited.
 
 Third-party dependencies remain subject to their respective licenses; those licenses apply only to the relevant third-party components and do not license KadoMoco itself. See [`LICENSE`](LICENSE) for the terms applicable to KadoMoco and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for dependency notices.
+
+## Binary asset safety
+
+The production sprite `src/assets/pet/pixel/kadomoco_sheet.png` is ignored generated output rather than a committed binary, because the review transport does not support binary patches. It is recreated deterministically by `prepare:sheet` and must not be edited directly. Update the canonical Base64 source at `assets/source/kadomoco-generated-magenta.png.base64`, then regenerate and verify all assets with:
+
+```bash
+npm run prepare:assets
+npm run build
+```
+
+Do not copy, replace, or transform PNG/ICO files as text. Text-based automated fix tools (including automated review fixes) must not modify binary assets; reject such changes and regenerate through the documented pipeline instead. Asset changes must pass sprite signature, decoding, dimensions, transparency, icon validation, before merge. The canonical Base64 source is the reviewable, committed representation of the sprite.
