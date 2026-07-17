@@ -1,8 +1,10 @@
 # Third-Party Notices
 
-This file is generated from `package-lock.json` and installed package metadata by `npm run licenses:generate`. It lists production dependency packages expected to be bundled with the app runtime. Development-only build tools are intentionally excluded.
+This file is generated from `package-lock.json` and installed package metadata by `npm run licenses:generate`. It lists notices for production dependency packages expected to be bundled with the app runtime. Development-only build tools are intentionally excluded.
 
-> Note: This notice does not choose or grant a distribution license for KadoMoco itself. The repository owner must decide the project license before v0.1.0 public distribution.
+KadoMoco itself is proprietary software and is not licensed under the licenses listed in this file. Those licenses apply only to their respective third-party components.
+
+See `LICENSE` for the terms applicable to KadoMoco's original source code and assets.
 
 | Package | Version | License | Source |
 | --- | --- | --- | --- |

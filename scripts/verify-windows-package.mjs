@@ -38,6 +38,17 @@ export function verifyWindowsPackage({ cwd = process.cwd(), listEntries = listAs
   assert.ok(existsSync(join(appRoot, 'resources')), 'ZIP must contain resources directory');
   assert.ok(existsSync(join(appRoot, 'resources', 'tray-icon.png')), 'ZIP must contain resources/tray-icon.png');
   assert.ok(statSync(join(appRoot, 'resources', 'tray-icon.png')).size > 0, 'resources/tray-icon.png must not be empty');
+  const packagedLicense = join(appRoot, 'resources', 'LICENSE');
+  const packagedNotices = join(appRoot, 'resources', 'THIRD_PARTY_NOTICES.md');
+  assert.ok(existsSync(packagedLicense), 'ZIP must contain resources/LICENSE');
+  assert.ok(statSync(packagedLicense).size > 0, 'resources/LICENSE must not be empty');
+  assert.match(readFileSync(packagedLicense, 'utf8'), /All Rights Reserved/, 'resources/LICENSE must contain All Rights Reserved');
+  assert.match(readFileSync(packagedLicense, 'utf8'), /sasazaki1994/, 'resources/LICENSE must identify sasazaki1994');
+  assert.ok(existsSync(packagedNotices), 'ZIP must contain resources/THIRD_PARTY_NOTICES.md');
+  assert.ok(statSync(packagedNotices).size > 0, 'resources/THIRD_PARTY_NOTICES.md must not be empty');
+  const notices = readFileSync(packagedNotices, 'utf8');
+  assert.match(notices, /^# Third-Party Notices/m, 'resources/THIRD_PARTY_NOTICES.md must contain its heading');
+  assert.doesNotMatch(notices, /\bUNKNOWN\b/, 'resources/THIRD_PARTY_NOTICES.md must not contain UNKNOWN licenses');
   const appAsarPath = join(appRoot, 'resources', 'app.asar');
   assert.ok(existsSync(appAsarPath), 'ZIP must contain resources/app.asar');
 

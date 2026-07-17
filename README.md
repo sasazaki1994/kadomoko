@@ -125,7 +125,7 @@ Windows ビルドは `build/icon.ico` をアプリ／インストーラーアイ
 - Install / uninstall guide: [`docs/install-and-uninstall.md`](docs/install-and-uninstall.md)
 - Release notes: [`docs/release-notes-v0.1.0.md`](docs/release-notes-v0.1.0.md)
 - Changelog: [`CHANGELOG.md`](CHANGELOG.md)
-- License decision status: [`docs/licensing-decision.md`](docs/licensing-decision.md)
+- License decision record: [`docs/licensing-decision.md`](docs/licensing-decision.md)
 - Credits: [`CREDITS.md`](CREDITS.md)
 - Third-party notices: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
 - Bug reports: use the GitHub issue template and avoid attaching raw save data or personal information.
@@ -189,4 +189,10 @@ powershell -ExecutionPolicy Bypass -File scripts/windows-rc-qa.ps1 `
 
 Add `-LaunchSmoke` only when you want to confirm the ZIP app process starts and does not immediately exit; the script does not force-terminate the app. Use [`docs/qa/windows-rc-test-plan.md`](docs/qa/windows-rc-test-plan.md), [`docs/qa/windows-rc-result-template.md`](docs/qa/windows-rc-result-template.md), and [`docs/qa/release-decision-template.md`](docs/qa/release-decision-template.md) for manual QA and release judgement.
 
-The project distribution license is still undecided. `scripts/check-project-license.mjs --warn` allows RC artifact generation, but `--require` must fail and remain a public-release blocker until the owner chooses a license and updates the repository metadata.
+## License
+
+KadoMoco is proprietary software. Copyright © 2026 sasazaki1994. All Rights Reserved. This applies to the game code and original materials, including its characters, artwork, sprites, icons, logos, text, and audio.
+
+Public access to this repository—and GitHub's ordinary repository viewing or forking functionality—does not grant permission to reuse the copyrighted work. Publishing or selling forked code as another product, or copying, modifying, redistributing, selling, or using KadoMoco code, assets, names, logos, or brand elements in another product without prior express written permission is prohibited.
+
+Third-party dependencies remain subject to their respective licenses; those licenses apply only to the relevant third-party components and do not license KadoMoco itself. See [`LICENSE`](LICENSE) for the terms applicable to KadoMoco and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for dependency notices.

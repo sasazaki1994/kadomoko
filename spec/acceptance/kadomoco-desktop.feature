@@ -333,9 +333,10 @@ Feature: v0.1.0 RC qualification kit
     And the script writes a UTF-8 JSON report
     And the script does not uninstall the app, delete files, or intentionally modify existing save data
 
-  Scenario: Undecided project license blocks public release but not RC generation
-    Given the project distribution license has not been chosen by the owner
-    When the license checker runs in warn mode
-    Then it reports the undecided license without failing RC artifact generation
+  Scenario: Proprietary project licensing is required for release artifacts
+    Given KadoMoco is proprietary and All Rights Reserved
+    And package metadata declares private true and UNLICENSED
     When the license checker runs in require mode
-    Then it fails the public release readiness check
+    Then it validates the owner, year, project documents, and package metadata
+    And Windows packages contain LICENSE and THIRD_PARTY_NOTICES.md in resources
+    And third-party licenses are not represented as licenses for KadoMoco itself

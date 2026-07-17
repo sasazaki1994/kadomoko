@@ -19,4 +19,4 @@ All notable changes to KadoMoco are documented in this file. This project follow
 
 ### Known limitations
 - v0.1.0 is not code-signed, so Windows SmartScreen may warn on first launch.
-- The project distribution license is undecided and must be resolved by the repository owner before public release.
+- Established KadoMoco as proprietary, All Rights Reserved software and separated its terms from third-party dependency licenses.
