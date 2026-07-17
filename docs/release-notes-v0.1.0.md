@@ -20,4 +20,6 @@ See `docs/install-and-uninstall.md` for NSIS and ZIP installation, complete exit
 
 - v0.1.0 is not code-signed. Windows SmartScreen may show a warning until signing and reputation are established.
 - The GitHub Release workflow creates a draft release from a matching `v0.1.0` tag; it does not publish automatically.
-- The project distribution license is not decided yet and remains a public-release blocker.
+- KadoMoco v0.1.0 is proprietary software. Its code and original assets are Copyright © 2026 sasazaki1994. All Rights Reserved.
+- Third-party components remain subject to their respective licenses; those licenses do not apply to KadoMoco's original code or assets.
+- Distributions include `LICENSE` and `THIRD_PARTY_NOTICES.md` under the application's `resources` directory.

@@ -17,4 +17,4 @@
 
 ## Notes
 
-Public release must remain NO-GO while the project distribution license is undecided.
+Public release must remain NO-GO unless the proprietary project license check passes in `--require` mode.

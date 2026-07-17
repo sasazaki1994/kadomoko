@@ -1,14 +1,17 @@
-# Licensing decision required
+# KadoMoco licensing decision
 
-KadoMoco does not currently include a project `LICENSE` file or an explicit distribution license. Codex must not choose one on behalf of the repository owner. The owner must decide the license before v0.1.0 is publicly distributed.
+## Decision
 
-## Options to consider
+KadoMoco is proprietary and All Rights Reserved.
 
-- **MIT**: Permissive; allows use, modification, redistribution, and commercial use with copyright and license notice preservation.
-- **Apache-2.0**: Permissive like MIT, with explicit patent license terms and NOTICE handling.
-- **Source available, redistribution prohibited**: Allows people to read the source but restricts copying, redistribution, and reuse unless separately permitted.
-- **All Rights Reserved**: No broad reuse rights are granted unless the owner gives separate permission.
+- **Package metadata:** `UNLICENSED`
+- **Copyright holder:** sasazaki1994
+- **Copyright year:** 2026
+- **Third-party dependencies:** Remain under their respective licenses.
+- **Future reusable tools:** May be extracted into separate repositories and licensed separately, but no current KadoMoco source file is MIT-licensed.
 
-## v0.1.0 blocker
+## Rationale
 
-A distribution license decision is a release blocker. The selected license should be added to the repository and reflected in README, release notes, package metadata, and distributed notices before a public v0.1.0 release.
+KadoMoco is intended for commercial distribution through channels such as Steam. Proprietary treatment protects the product value of its game logic and original assets and does not automatically permit code to be repurposed for competing or similar products. Generic or reusable components may still be extracted into separate repositories in the future, at which point their owners may choose separate licenses without changing the rights in the current KadoMoco repository.
+
+Repository visibility does not grant reuse rights. Exceptions require prior express written permission from the copyright holder. Third-party notices describe only their respective components and must not be confused with the rights applicable to KadoMoco itself.

@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to KadoMoco are documented in this file. This project follows a Keep a Changelog-style format, but a distribution license has not yet been selected.
+All notable changes to KadoMoco are documented in this file. This project follows a Keep a Changelog-style format.
 
 ## [0.1.0] - Release Candidate
 
@@ -16,7 +16,7 @@ All notable changes to KadoMoco are documented in this file. This project follow
 
 ### Changed
 - Windows packaging is prepared to use the official app ICO and packaged tray icon assets.
+- Established KadoMoco as proprietary, All Rights Reserved software and separated its terms from third-party dependency licenses.
 
 ### Known limitations
 - v0.1.0 is not code-signed, so Windows SmartScreen may warn on first launch.
-- The project distribution license is undecided and must be resolved by the repository owner before public release.

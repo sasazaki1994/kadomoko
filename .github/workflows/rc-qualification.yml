@@ -48,7 +48,7 @@ jobs:
       - run: npm run generate:icons
       - run: npm run validate:icons
       - run: npm run licenses:validate
-      - run: node scripts/check-project-license.mjs --warn
+      - run: npm run license:project -- --require
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test

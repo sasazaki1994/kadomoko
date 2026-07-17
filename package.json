@@ -2,6 +2,7 @@
   "name": "kado-moco",
   "private": true,
   "version": "0.1.0",
+  "license": "UNLICENSED",
   "description": "KadoMoco - a tiny desktop-resident pixel pet",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -89,6 +90,14 @@
       {
         "from": "build/tray-icon.png",
         "to": "tray-icon.png"
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE"
+      },
+      {
+        "from": "THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
       }
     ]
   }
