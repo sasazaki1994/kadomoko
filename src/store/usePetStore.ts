@@ -141,6 +141,20 @@ function scheduleSave(pet: PetState) {
   }, 400);
 }
 
+function persistFocusCompletion(pet: PetState) {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  const api = window.kadomoco;
+  if (!api) return;
+  // Completion uses a dedicated atomic save so both the primary and fallback
+  // copy settle the active session together.
+  void api.writeFocusCompletion(pet, CURRENT_SAVE_VERSION)
+    .catch(() => api.writePet(pet, CURRENT_SAVE_VERSION))
+    .catch(() => undefined);
+}
+
 export const usePetStore = create<PetStore>((set, get) => {
   const showTempState = (state: TempMachineState, effect: CharacterEffect, durationMs?: number) => {
     if (tempStateTimer) clearTimeout(tempStateTimer);
@@ -229,7 +243,8 @@ export const usePetStore = create<PetStore>((set, get) => {
         alwaysOnTop: save.settings.alwaysOnTop,
         settings: save.settings,
       });
-      scheduleSave(focusStep.pet);
+      if (focusStep.completed) persistFocusCompletion(focusStep.pet);
+      else scheduleSave(focusStep.pet);
       if (focusStep.completed) {
         if (focusStep.leveledUp) showTempState('levelUp', null);
         else showTempState('reaction', 'gaze', 3_000);
@@ -238,6 +253,7 @@ export const usePetStore = create<PetStore>((set, get) => {
     },
 
     tick: () => {
+      if (!get().loaded) return;
       const now = Date.now();
       const { pet, showBubble, settings } = get();
       const result = progressTime(pet, now, { online: true });
@@ -269,11 +285,15 @@ export const usePetStore = create<PetStore>((set, get) => {
         ? { pet: next }
         : maybeRollDiscovery(next, now, { ambientFrequency: settings.ambientFrequency });
       next = discoveryRoll.pet;
-      const tinyAdvanced = advanceTinyPlay(next, now);
-      next = tinyAdvanced.pet;
-      if (tinyAdvanced.ended && tinyAdvanced.effect) showTempState('reaction', tinyAdvanced.effect as CharacterEffect, 2_500);
-      if (tinyAdvanced.ended && tinyAdvanced.bubble) showBubble(tinyAdvanced.bubble);
-      if (!tinyAdvanced.ended && !focusActive) next = maybeStartTinyPlay(next, now, { ambientFrequency: settings.ambientFrequency }).pet;
+      if (!focusActive) {
+        const tinyAdvanced = advanceTinyPlay(next, now);
+        next = tinyAdvanced.pet;
+        if (tinyAdvanced.ended && tinyAdvanced.effect) showTempState('reaction', tinyAdvanced.effect as CharacterEffect, 2_500);
+        if (tinyAdvanced.ended && tinyAdvanced.bubble) showBubble(tinyAdvanced.bubble);
+        if (!tinyAdvanced.ended) {
+          next = maybeStartTinyPlay(next, now, { ambientFrequency: settings.ambientFrequency }).pet;
+        }
+      }
 
       const dreamStep = progressDreams(next, now, { ambientFrequency: settings.ambientFrequency });
       next = dreamStep.pet;
@@ -287,10 +307,20 @@ export const usePetStore = create<PetStore>((set, get) => {
         playRandomEvent(event);
       }
 
-      applyPetUpdate(next, { leveledUp: result.leveledUp, newLevel: result.newLevel });
+      applyPetUpdate(next, {
+        leveledUp: !focusActive && result.leveledUp,
+        newLevel: result.newLevel,
+      });
       // Task completion is progress feedback, not ambient chatter: show it on
-      // 'quiet' too (matching catchUpOffline), and suppress only on 'off'.
-      if (!result.leveledUp && settings.bubbleFrequency !== 'off') showDailyTaskBubble(result.completedTaskIds);
+      // 'quiet' too (matching catchUpOffline), while an active focus session
+      // suppresses all automatic bubbles.
+      if (
+        !focusActive
+        && !result.leveledUp
+        && settings.bubbleFrequency !== 'off'
+      ) {
+        showDailyTaskBubble(result.completedTaskIds);
+      }
 
       if (!focusActive && !event && rollChance(AMBIENT_SPEECH_CHANCE_PER_MINUTE * BUBBLE_MULTIPLIER[settings.bubbleFrequency])) {
         const state = deriveBaseState(next.vitals, next.currentAction);
@@ -305,8 +335,10 @@ export const usePetStore = create<PetStore>((set, get) => {
     },
 
     catchUpOffline: (fromResume = false) => {
+      if (!get().loaded) return;
       const now = Date.now();
       const result = progressTime(get().pet, now, { online: false });
+      const focusWasActive = result.pet.focusSessions.active !== null;
       // Surface a brewed dream if the pet woke while the app was away.
       const dreamStep = progressDreams(result.pet, now, { ambientFrequency: get().settings.ambientFrequency });
       const focusStep = resolveFocusSessionProgress(dreamStep.pet, now);
@@ -314,10 +346,26 @@ export const usePetStore = create<PetStore>((set, get) => {
         leveledUp: focusStep.leveledUp || result.leveledUp,
         newLevel: focusStep.newLevel ?? result.newLevel,
       });
-      if (!result.leveledUp) showDailyTaskBubble(result.completedTaskIds);
-      if (focusStep.completed && focusStep.bubble) get().showBubble(focusStep.bubble, true);
-      recordSignal(focusStep.pet, { input: 'click', at: now, detail: 'resume' });
-      if (fromResume && now - lastResumeReactionAt >= RESUME_REACTION_MIN_GAP_MS) {
+      if (focusStep.completed) {
+        set({ focusSessionOpen: false });
+        persistFocusCompletion(focusStep.pet);
+        if (!focusStep.leveledUp && !result.leveledUp) {
+          showTempState('reaction', 'gaze', 3_000);
+        }
+        if (focusStep.bubble && !focusStep.leveledUp && !result.leveledUp) {
+          get().showBubble(focusStep.bubble, true);
+        }
+      } else if (!focusWasActive && !result.leveledUp) {
+        showDailyTaskBubble(result.completedTaskIds);
+      }
+      if (!focusWasActive) {
+        recordSignal(focusStep.pet, { input: 'click', at: now, detail: 'resume' });
+      }
+      if (
+        fromResume
+        && !focusWasActive
+        && now - lastResumeReactionAt >= RESUME_REACTION_MIN_GAP_MS
+      ) {
         lastResumeReactionAt = now;
         showTempState('curious', 'gaze', 3_000);
         get().showBubble(pickRandom(RESUME_BUBBLES) ?? RESUME_BUBBLES[0], true);
@@ -353,8 +401,10 @@ export const usePetStore = create<PetStore>((set, get) => {
 
     performContextAction: (action) => {
       const now = Date.now();
-      const tiny = interactWithTinyPlay(get().pet, now);
-      if (tiny.bubble) { applyPetUpdate(tiny.pet); if (tiny.tempState && isTempState(tiny.tempState)) showTempState(tiny.tempState, 'hop'); get().showBubble(tiny.bubble, true); set({ menuOpen: false }); return; }
+      if (!get().pet.focusSessions.active) {
+        const tiny = interactWithTinyPlay(get().pet, now);
+        if (tiny.bubble) { applyPetUpdate(tiny.pet); if (tiny.tempState && isTempState(tiny.tempState)) showTempState(tiny.tempState, 'hop'); get().showBubble(tiny.bubble, true); set({ menuOpen: false }); return; }
+      }
       recordSignal(get().pet, { input: 'context_action', at: now, detail: action });
       const result = performContextCareAction(get().pet, action, now);
       if (!result.ok) {
@@ -419,7 +469,6 @@ export const usePetStore = create<PetStore>((set, get) => {
       const result = beginFocusSession(get().pet, durationMinutes, Date.now());
       if (!result.started) return;
       applyPetUpdate(result.pet);
-      set({ focusSessionOpen: false });
       showTempState('reaction', 'gaze', 2_500);
       get().showBubble('ここにいるね', true);
     },
@@ -430,14 +479,17 @@ export const usePetStore = create<PetStore>((set, get) => {
       get().showBubble('また、いつでも', true);
     },
     progressFocusSession: () => {
+      if (!get().loaded) return;
       const result = resolveFocusSessionProgress(get().pet, Date.now());
       if (!result.completed) {
         if (result.pet !== get().pet) applyPetUpdate(result.pet);
         return;
       }
       applyPetUpdate(result.pet, { leveledUp: result.leveledUp, newLevel: result.newLevel });
+      set({ focusSessionOpen: false });
+      persistFocusCompletion(result.pet);
       if (!result.leveledUp) showTempState('reaction', 'gaze', 3_000);
-      if (result.bubble) get().showBubble(result.bubble, true);
+      if (result.bubble && !result.leveledUp) get().showBubble(result.bubble, true);
     },
 
     toggleAlwaysOnTop: async () => {

@@ -264,18 +264,35 @@ Feature: KadoMoco desktop pet
     Then dream state is initialized safely
     And existing pet data is preserved
 
-  Scenario: A quiet focus session can be started
+  Scenario Outline: A quiet focus session can be started from either preset
     Given the user opens the right-click menu
-    When the user starts a 10-minute or 25-minute focus session
+    When the user starts a <minutes>-minute focus session
     Then a small remaining-time cue is shown near KadoMoco
     And normal pet interactions remain available
+    Examples:
+      | minutes |
+      | 10      |
+      | 25      |
 
-  Scenario: A focus session completes gently
+  Scenario: Focus suppresses ambient interruptions but not direct care
     Given a focus session is active
-    When its end time is reached
+    When ambient speech, a discovery, or a tiny play would start
+    Then those ambient events are not shown during the focus session
+    When the user clicks KadoMoco or selects a care or context action
+    Then the normal direct interaction and its feedback still run
+
+  Scenario Outline: A focus session completes gently and exactly once
+    Given a focus session is active
+    When its end time is processed by <completion path>
     Then KadoMoco shows a short quiet reaction
     And the session is counted once
+    And processing the same end time again does not grant another reward
     And no disruptive notification is shown
+    Examples:
+      | completion path    |
+      | the running timer  |
+      | PC resume          |
+      | application restart |
 
   Scenario: Ending focus early has no penalty
     Given a focus session is active
@@ -283,11 +300,38 @@ Feature: KadoMoco desktop pet
     Then the session closes without a reward
     And no failure or blaming message is shown
 
-  Scenario: Focus sessions survive restart safely
-    Given a focus session was active when the app closed
-    When the app restarts after its end time
-    Then the session completes exactly once
-    And older saves receive an empty focus session state without losing pet data
+  Scenario: Focus rewards follow the local calendar with a daily cap
+    Given three rewarded focus sessions completed on the current local date
+    When another focus session completes on the same local date
+    Then it is counted without granting another reward
+    When a session crosses midnight and completes on the next local date
+    Then it is eligible under the next local date's reward count
+
+  Scenario: Clock changes do not extend time or reopen earned rewards
+    Given a focus session and its recent local-date reward counts are saved
+    When the system clock moves backwards
+    Then the saved remaining duration is preserved
+    And a previously capped local date does not become reward-eligible again
+    When the system clock moves forwards past the deadline
+    Then the session completes no more than once
+
+  Scenario: Focus save data is recovered and migrated safely
+    Given a corrupted focus state or a v8-or-earlier save exists
+    When the app loads the save
+    Then invalid focus fields are sanitized without crashing
+    And an empty v9 focus state is added when it was missing
+    And existing vitals, progression, memories, and settings are preserved
+    And backup recovery does not replay an already completed session
+
+  Scenario: The focus panel can be closed and reopened accessibly
+    Given a focus session is active
+    When the user closes the focus panel and later reopens it
+    Then the timer continues from its saved deadline
+    And the displayed remaining time is based on the current time
+    And the panel remains inside the 240 by 240 expanded window
+    And focus moves inside the dialog
+    And Tab, Shift+Tab, and Escape operate the dialog
+    And the countdown has an accessible timer label without second-by-second live announcements
 
   Scenario: Production sprite sheet is generated from the magenta source image
     Given the KadoMoco magenta source image is stored as a text-safe Base64 asset

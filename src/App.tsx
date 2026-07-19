@@ -44,19 +44,30 @@ export default function App() {
   }, [init]);
 
   useEffect(() => {
+    if (!loaded) return undefined;
     const interval = setInterval(tick, BALANCE.time.updateIntervalMs);
     return () => clearInterval(interval);
-  }, [tick]);
+  }, [loaded, tick]);
 
   useEffect(() => {
+    if (!loaded) return undefined;
     const interval = setInterval(progressFocusSession, 1_000);
     return () => clearInterval(interval);
-  }, [progressFocusSession]);
+  }, [loaded, progressFocusSession]);
 
   useEffect(() => {
     const unsubscribe = window.kadomoco?.onPowerResume(() => catchUpOffline(true));
     return unsubscribe;
   }, [catchUpOffline]);
+
+  useEffect(() => {
+    if (!loaded) return undefined;
+    const catchUpWhenVisible = () => {
+      if (document.visibilityState === 'visible') catchUpOffline();
+    };
+    document.addEventListener('visibilitychange', catchUpWhenVisible);
+    return () => document.removeEventListener('visibilitychange', catchUpWhenVisible);
+  }, [catchUpOffline, loaded]);
 
   useEffect(() => {
     // Keep the in-app menu in sync when always-on-top is toggled from the tray.

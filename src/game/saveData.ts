@@ -263,8 +263,7 @@ function sanitizeJournalEntries(raw: unknown): DailyJournalEntry[] {
  * Fields added since each save version. Spread before the raw pet so real
  * data always wins; migration only fills in what a version could not have.
  */
-function migrationDefaults(version: number): Record<string, unknown> {
-  const now = Date.now();
+function migrationDefaults(version: number, now: number): Record<string, unknown> {
   const defaults: Record<string, unknown> = {};
   if (version <= 1) Object.assign(defaults, { journalEntries: [] });
   if (version <= 2) Object.assign(defaults, { lastContextActionAt: {} });
@@ -277,20 +276,20 @@ function migrationDefaults(version: number): Record<string, unknown> {
   return defaults;
 }
 
-export function migrateSave(raw: unknown): unknown {
+export function migrateSave(raw: unknown, now = Date.now()): unknown {
   if (!isRecord(raw)) return null;
   if (raw.version === CURRENT_SAVE_VERSION) return raw;
   if (typeof raw.version !== 'number' || raw.version < 1 || raw.version > CURRENT_SAVE_VERSION) return null;
   return {
     ...raw,
     version: CURRENT_SAVE_VERSION,
-    pet: isRecord(raw.pet) ? { ...migrationDefaults(raw.version), ...raw.pet } : raw.pet,
+    pet: isRecord(raw.pet) ? { ...migrationDefaults(raw.version, now), ...raw.pet } : raw.pet,
   };
 }
 
 function sanitizeCurrentVersionSave(raw: unknown, now: number): SaveData | null {
   if (!isRecord(raw)) return null;
-  const migrated = migrateSave(raw);
+  const migrated = migrateSave(raw, now);
   if (!isRecord(migrated) || !isRecord(migrated.pet)) return null;
 
   const fresh = createInitialPetState(now);

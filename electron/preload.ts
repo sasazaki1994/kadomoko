@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 export type KadomocoApi = {
   loadSave: () => Promise<unknown>;
   writePet: (pet: unknown, version: number) => Promise<void>;
+  writeFocusCompletion: (pet: unknown, version: number) => Promise<void>;
   getSettings: () => Promise<Record<string, unknown>>;
   setSettings: (partial: Record<string, unknown>) => Promise<Record<string, unknown>>;
   setAlwaysOnTop: (value: boolean) => Promise<boolean>;
@@ -17,6 +18,7 @@ export type KadomocoApi = {
 const api: KadomocoApi = {
   loadSave: () => ipcRenderer.invoke('save:load'),
   writePet: (pet, version) => ipcRenderer.invoke('save:write-pet', pet, version),
+  writeFocusCompletion: (pet, version) => ipcRenderer.invoke('save:write-focus-completion', pet, version),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (partial) => ipcRenderer.invoke('settings:set', partial),
   setAlwaysOnTop: (value) => ipcRenderer.invoke('settings:set-always-on-top', value),

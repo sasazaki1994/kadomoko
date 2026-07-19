@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
+import { focusSessionRemainingSeconds } from '../game/focusSessions';
 import { usePetStore } from '../store/usePetStore';
 import type { FocusSession } from '../game/types';
 
 function formatRemaining(endsAt: number, now: number): string {
-  const seconds = Math.max(0, Math.ceil((endsAt - now) / 1_000));
+  const seconds = focusSessionRemainingSeconds(endsAt, now);
   const minutes = Math.floor(seconds / 60);
   return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
 }
@@ -22,6 +23,7 @@ export default function FocusSessionBadge({ session }: { session: FocusSession }
       className="focus-session-badge"
       title="集中タイマーを開く"
       aria-label={`いっしょに集中、残り${formatRemaining(session.endsAt, now)}`}
+      aria-haspopup="dialog"
       onClick={openFocusSession}
     >
       <span aria-hidden="true">◌</span>
