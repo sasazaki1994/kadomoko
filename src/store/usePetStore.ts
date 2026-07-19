@@ -352,7 +352,9 @@ export const usePetStore = create<PetStore>((set, get) => {
         if (!focusStep.leveledUp && !result.leveledUp) {
           showTempState('reaction', 'gaze', 3_000);
         }
-        if (focusStep.bubble) get().showBubble(focusStep.bubble, true);
+        if (focusStep.bubble && !focusStep.leveledUp && !result.leveledUp) {
+          get().showBubble(focusStep.bubble, true);
+        }
       } else if (!focusWasActive && !result.leveledUp) {
         showDailyTaskBubble(result.completedTaskIds);
       }
@@ -487,7 +489,7 @@ export const usePetStore = create<PetStore>((set, get) => {
       set({ focusSessionOpen: false });
       persistFocusCompletion(result.pet);
       if (!result.leveledUp) showTempState('reaction', 'gaze', 3_000);
-      if (result.bubble) get().showBubble(result.bubble, true);
+      if (result.bubble && !result.leveledUp) get().showBubble(result.bubble, true);
     },
 
     toggleAlwaysOnTop: async () => {
