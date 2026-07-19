@@ -138,10 +138,11 @@ test('Electron renderer supports core care and panel flows', { timeout: 25_000 }
 test('Electron panels resize safely and remain mutually exclusive', { timeout: 25_000 }, async (t) => {
   const run = await runScenario(t, { scenario: 'panels' });
   if (!run) return;
-  assert.deepEqual(run.result.expandedSize, [260, 260]);
+  assert.deepEqual(run.result.expandedSize, [240, 240]);
   assert.deepEqual(run.result.normalSize, [180, 180]);
   assert.equal(run.result.withinDisplay, true);
   assert.equal(run.result.onlyOnePanelAtATime, true);
+  assert.equal(run.result.allPanelsFit, true, JSON.stringify(run.result.panelFits));
 });
 
 test('Electron save data, settings, and window position survive restart', { timeout: 35_000 }, async (t) => {

@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 const localRequire = createRequire(__filename);
 const { assertAsarContents, normalizeArchivePath } = localRequire(join(process.cwd(), 'scripts/verify-windows-package-utils.cjs')) as {
@@ -26,4 +29,19 @@ test('rejects app.asar contents without the production sprite sheet', () => {
     () => assertAsarContents(['/dist/assets/other.png']),
     /app\.asar must include the sprite sheet asset/,
   );
+});
+
+test('the Windows package verifier CLI executes instead of silently returning', () => {
+  const cwd = mkdtempSync(join(tmpdir(), 'kadomoco-package-cli-'));
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [join(process.cwd(), 'scripts/verify-windows-package.mjs')],
+      { cwd, encoding: 'utf8' },
+    );
+    assert.notEqual(result.status, 0);
+    assert.match(`${result.stdout}\n${result.stderr}`, /release directory must exist/);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
 });

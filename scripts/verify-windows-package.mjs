@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 import { listPackage } from '@electron/asar';
 
 const require = createRequire(import.meta.url);
@@ -12,13 +13,17 @@ export function listAsarEntries(appAsarPath) {
   return listPackage(appAsarPath);
 }
 
-export function verifyWindowsPackage({ cwd = process.cwd(), listEntries = listAsarEntries } = {}) {
+export function verifyWindowsPackage({
+  cwd = process.cwd(),
+  listEntries = listAsarEntries,
+  architecture = process.env.npm_config_arch ?? process.arch,
+} = {}) {
   const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
   const releaseDir = join(cwd, 'release');
   assert.ok(existsSync(releaseDir), 'release directory must exist');
   const files = readdirSync(releaseDir);
   const version = packageJson.version;
-  const expectedBase = `KadoMoco-${version}-x64`;
+  const expectedBase = `KadoMoco-${version}-${architecture}`;
   const nsis = files.find((file) => file === `${expectedBase}.exe`);
   const zip = files.find((file) => file === `${expectedBase}.zip`);
   assert.ok(nsis, `missing NSIS installer named ${expectedBase}.exe`);
@@ -61,6 +66,6 @@ export function verifyWindowsPackage({ cwd = process.cwd(), listEntries = listAs
   console.log(`Windows package verification passed for ${basename(join(releaseDir, nsis))} and ${basename(join(releaseDir, zip))}.`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   verifyWindowsPackage();
 }

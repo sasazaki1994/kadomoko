@@ -44,20 +44,20 @@ jobs:
           "SHORT_SHA=$short" | Out-File -FilePath $env:GITHUB_ENV -Append
           "RC_SOURCE_REF=$env:INPUT_REF" | Out-File -FilePath $env:GITHUB_ENV -Append
       - run: npm ci
-      - run: npm run prepare:assets
-      - run: npm run licenses:validate
-      - run: npm run license:project -- --require
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run test
-      - run: npm run build
       - if: ${{ inputs.run-e2e }}
-        run: npm run test:e2e
+        run: npm run release:check:win
       - if: ${{ !inputs.run-e2e }}
-        shell: pwsh
-        run: '"RC_E2E_STATUS=not-run" | Out-File -FilePath $env:GITHUB_ENV -Append'
-      - run: npm run package:win
-      - run: npm run verify:package:win
+        run: npm run release:check:win -- --skip-e2e
+      - name: Upload release readiness report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kadomoco-rc-release-readiness-${{ github.run_id }}
+          retention-days: ${{ fromJSON(inputs.artifact-retention-days) }}
+          path: |
+            artifacts/release-readiness.json
+            artifacts/release-readiness.md
+          if-no-files-found: warn
       - name: Generate SHA-256 checksums
         shell: pwsh
         run: |
@@ -91,3 +91,5 @@ jobs:
             release/KadoMoco-*.sha256
             release/rc-manifest.json
             release/windows-rc-result-template.md
+            artifacts/release-readiness.json
+            artifacts/release-readiness.md

@@ -4,10 +4,14 @@
 - Target version:
 - Artifact names:
 - Artifact SHA-256:
+- Automated readiness report:
 - Tester:
 - Date:
-- Environment:
+- Windows version:
+- Display scale:
+- Monitor configuration:
 - `windows-rc-qa.ps1` report path:
+- Failure issue number(s):
 
 ## Summary
 

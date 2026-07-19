@@ -34,6 +34,11 @@ npm run dev
 | `npm run build` | スプライト検証 + 型チェック + 本番ビルド |
 | `npm run test:e2e` | 本番ビルド後に Electron の最小 E2E スモークテストを実行 |
 | `npm run package:win` | Windows NSIS / ZIP パッケージを `release/` に生成 |
+| `npm run release:check` | OS非依存のv0.1.0リリースゲートを順次実行し、JSON / Markdownレポートを生成 |
+| `npm run release:check -- --include-e2e` | GUIを利用できる環境でElectron E2Eも含めて実行 |
+| `npm run release:check:win` | WindowsでE2E、NSIS / ZIP生成、パッケージ検証まで統合実行 |
+
+統合ゲートは失敗した工程で停止し、後続工程を `not-run` として `artifacts/release-readiness.json` と `artifacts/release-readiness.md` に記録します。自動検証はWindows実機QAを完了扱いにせず、`manualQaStatus` は証拠を伴う手動更新まで `not-tested` のままです。
 
 ## 操作
 
@@ -55,6 +60,7 @@ npm run dev
 - 夢のかけら、発見イベント、ひみつの合図、小さな遊び
 - いっしょに深呼吸、いっしょに集中
 - 透明・フレームレス・小型 Electron ウィンドウ
+- 通常180×180px、パネル表示時240×240pxの共有ウィンドウ仕様
 - セーブデータのサニタイズ、段階移行、バックアップ復旧
 
 ## スプライト生成・検証仕様
@@ -108,13 +114,10 @@ Windows ビルドは `build/icon.ico` をアプリ／インストーラーアイ
 配布前チェック:
 
 1. `npm ci`
-2. `npm run typecheck`
-3. `npm run lint`
-4. `npm run test`
-5. `npm run build`
-6. `npm run test:e2e`（GUI 実行可能な環境）
-7. Windows runner で `npm run package:win`
-8. NSIS / ZIP の起動、保存復元、終了、アンインストール時のユーザーデータ保持を確認
+2. OS非依存環境では `npm run release:check`（GUI利用可能時は `-- --include-e2e`）
+3. Windows runner では `npm run release:check:win`
+4. 生成されたリリース準備レポートを保存
+5. NSIS / ZIP の起動、保存復元、終了、アンインストール時のユーザーデータ保持を実機確認
 
 ## 開発者 UI
 
@@ -160,7 +163,7 @@ Unknown dependency licenses fail validation and must be resolved before release.
 
 ## Release workflow
 
-`.github/workflows/release.yml` runs on `v*.*.*` tags or manual dispatch. It validates that the tag name matches `package.json` (`v0.1.0`), runs sprite, icon, license, typecheck, lint, unit, build, Electron E2E, Windows packaging, and package verification, generates SHA-256 checksum files for the EXE and ZIP, then creates a **Draft** GitHub Release with the artifacts and release notes attached. The workflow uses `contents: write` only because `gh release create` needs permission to create the draft release and upload assets. It does not publish the release automatically and this change does not create a tag.
+`.github/workflows/release.yml` runs on `v*.*.*` tags or manual dispatch. Its Windows job runs `release:check:win` with the requested tag, generates SHA-256 checksum files for the EXE and ZIP, then creates a **Draft** GitHub Release with the packages, checksums, release notes, and readiness reports attached. `contents: write` is scoped to that draft-release job only. It does not publish the release automatically and this change does not create a tag.
 
 ## RC Qualification workflow
 
@@ -170,7 +173,7 @@ Use **Actions > RC Qualification** to qualify a branch, commit, or tag without c
 - `artifact-retention-days`: uploaded artifact retention; default `14`.
 - `run-e2e`: whether to run Electron E2E; default `true`.
 
-The workflow uploads `kadomoco-windows-rc-<version>-<short-sha>` containing the Windows NSIS EXE, ZIP, `.sha256` files, `rc-manifest.json`, and a QA result template. This differs from the Draft Release workflow: RC Qualification is for private qualification artifacts only, while Draft Release validates a version tag and creates a draft GitHub Release.
+The workflow uploads `kadomoco-windows-rc-<version>-<short-sha>` containing the Windows NSIS EXE, ZIP, `.sha256` files, `rc-manifest.json`, readiness JSON / Markdown reports, and a QA result template. This differs from the Draft Release workflow: RC Qualification is for private qualification artifacts only, while Draft Release validates a version tag and creates a draft GitHub Release.
 
 After downloading the RC artifact, verify checksums on Windows PowerShell:
 

@@ -4,6 +4,7 @@
 - Target version:
 - Artifact SHA-256:
 - Test environments:
+- Automated readiness report:
 - Automated test results:
 - Manual test results:
 - Untested items:
