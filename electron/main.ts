@@ -10,11 +10,15 @@ import {
 } from 'electron';
 import Store from 'electron-store';
 import path from 'node:path';
+import fs from 'node:fs';
 
 const WINDOW_SIZE = 180;
 const WINDOW_MIN = 120;
-const WINDOW_MAX = 240;
+const WINDOW_MAX = 260;
 const SCREEN_MARGIN = 12;
+const FRAMELESS_WINDOW = true;
+const TRANSPARENT_WINDOW = true;
+const SKIP_TASKBAR = true;
 
 type StoreSchema = {
   version: number;
@@ -26,33 +30,60 @@ type StoreSchema = {
 
 type SaveEnvelope = StoreSchema;
 
-const store = new Store<StoreSchema>({
-  name: 'kadomoco-save',
-  defaults: {
-    version: 1,
-    pet: null,
-    settings: { alwaysOnTop: false, volume: 50, statusDisplayMode: 'both', ambientFrequency: 'normal', bubbleFrequency: 'normal', reduceActivityWhenFullscreen: true },
-    windowPosition: null,
-    lastLaunchedAt: 0,
-  },
-});
+const storeDefaults: StoreSchema = {
+  version: 1,
+  pet: null,
+  settings: { alwaysOnTop: false, volume: 50, statusDisplayMode: 'both', ambientFrequency: 'normal', bubbleFrequency: 'normal', reduceActivityWhenFullscreen: true },
+  windowPosition: null,
+  lastLaunchedAt: 0,
+};
 
-const backupStore = new Store<SaveEnvelope>({
-  name: 'kadomoco-save-backup',
-  defaults: {
-    version: 1,
-    pet: null,
-    settings: { alwaysOnTop: false, volume: 50, statusDisplayMode: 'both', ambientFrequency: 'normal', bubbleFrequency: 'normal', reduceActivityWhenFullscreen: true },
-    windowPosition: null,
-    lastLaunchedAt: 0,
-  },
-});
+let store: Store<StoreSchema>;
+let backupStore: Store<SaveEnvelope>;
+
+function quarantineCorruptStoreFile(name: string) {
+  const file = path.join(app.getPath('userData'), `${name}.json`);
+  if (!fs.existsSync(file)) return;
+  try {
+    JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (parseError) {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const quarantined = path.join(app.getPath('userData'), `${name}.corrupt-${stamp}.json`);
+    try {
+      fs.renameSync(file, quarantined);
+    } catch (renameError) {
+      console.warn(`Failed to quarantine corrupt store file ${file}:`, renameError);
+      try {
+        fs.writeFileSync(file, JSON.stringify(storeDefaults, null, 2));
+      } catch (writeError) {
+        console.warn(`Failed to replace corrupt store file ${file}; electron-store may need to use its own fallback.`, writeError, parseError);
+      }
+    }
+  }
+}
+
+function createStore(name: string) {
+  quarantineCorruptStoreFile(name);
+  return new Store<StoreSchema>({ name, defaults: storeDefaults });
+}
+
+function initializeStores() {
+  store = createStore('kadomoco-save');
+  backupStore = createStore('kadomoco-save-backup');
+  const primaryIsInitial = store.get('pet') === null && store.get('lastLaunchedAt') === 0;
+  const backupHasData = backupStore.get('pet') !== null || backupStore.get('lastLaunchedAt') !== 0 || backupStore.get('settings').alwaysOnTop || backupStore.get('windowPosition') !== null;
+  if (primaryIsInitial && backupHasData) {
+    store.set(backupStore.store);
+  }
+}
 
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 let dragInterval: ReturnType<typeof setInterval> | null = null;
 let movedSaveTimer: ReturnType<typeof setTimeout> | null = null;
+const e2eConsoleErrors: string[] = [];
+const e2eUnhandledErrors: string[] = [];
 
 function bottomRightPosition(width: number, height: number): { x: number; y: number } {
   const area = screen.getPrimaryDisplay().workArea;
@@ -101,8 +132,7 @@ function writeBackup() {
   backupStore.set(currentPrimarySave());
 }
 
-function createTrayIcon() {
-  // Draw a small pale round blob programmatically so no image asset is needed.
+function createFallbackTrayIcon() {
   const size = 16;
   const buffer = Buffer.alloc(size * size * 4);
   const cx = size / 2 - 0.5;
@@ -113,7 +143,6 @@ function createTrayIcon() {
       const i = (y * size + x) * 4;
       const dist = Math.hypot(x - cx, y - cy);
       if (dist <= radius) {
-        // BGRA: pale warm beige body.
         buffer[i] = 0xc8;
         buffer[i + 1] = 0xe0;
         buffer[i + 2] = 0xf2;
@@ -123,11 +152,7 @@ function createTrayIcon() {
       }
     }
   }
-  // Simple dark eyes.
-  for (const [ex, ey] of [
-    [5, 7],
-    [10, 7],
-  ]) {
+  for (const [ex, ey] of [[5, 7], [10, 7]]) {
     const i = (ey * size + ex) * 4;
     buffer[i] = 0x55;
     buffer[i + 1] = 0x4a;
@@ -135,6 +160,25 @@ function createTrayIcon() {
     buffer[i + 3] = 0xff;
   }
   return nativeImage.createFromBitmap(buffer, { width: size, height: size });
+}
+
+function resolveTrayIconPath() {
+  const candidates = app.isPackaged
+    ? [path.join(process.resourcesPath, 'tray-icon.png')]
+    : [path.join(process.cwd(), 'build', 'tray-icon.png')];
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
+function createTrayIcon() {
+  const iconPath = resolveTrayIconPath();
+  if (iconPath) {
+    const image = nativeImage.createFromPath(iconPath);
+    if (!image.isEmpty()) return image;
+    console.warn(`Tray icon file could not be decoded: ${iconPath}`);
+  } else {
+    console.warn('Tray icon file was not found; using fallback tray icon.');
+  }
+  return createFallbackTrayIcon();
 }
 
 function updateTrayMenu() {
@@ -189,12 +233,12 @@ function createWindow() {
     maxHeight: WINDOW_MAX,
     x: position.x,
     y: position.y,
-    frame: false,
-    transparent: true,
+    frame: !FRAMELESS_WINDOW,
+    transparent: TRANSPARENT_WINDOW,
     resizable: false,
     maximizable: false,
     fullscreenable: false,
-    skipTaskbar: true,
+    skipTaskbar: SKIP_TASKBAR,
     alwaysOnTop: settings.alwaysOnTop,
     hasShadow: false,
     webPreferences: {
@@ -202,6 +246,16 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  win.webContents.on('console-message', (_event, level, message) => {
+    if (process.env.KADOMOCO_E2E === '1' && level >= 3) e2eConsoleErrors.push(message);
+  });
+  win.webContents.on('render-process-gone', (_event, details) => {
+    if (process.env.KADOMOCO_E2E === '1') e2eUnhandledErrors.push(`render-process-gone:${details.reason}`);
+  });
+  win.webContents.on('unresponsive', () => {
+    if (process.env.KADOMOCO_E2E === '1') e2eUnhandledErrors.push('renderer-unresponsive');
   });
 
   win.on('close', (event) => {
@@ -217,10 +271,92 @@ function createWindow() {
   });
 
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+  if (process.env.KADOMOCO_E2E === '1') {
+    win.webContents.once('did-finish-load', async () => {
+      await runE2eScenario();
+    });
+  }
+
   if (devServerUrl) {
     void win.loadURL(devServerUrl);
   } else {
     void win.loadFile(path.join(__dirname, '../dist/index.html'));
+  }
+}
+
+async function evaluateRenderer(script: string) {
+  if (!win) return null;
+  return win.webContents.executeJavaScript(script, true);
+}
+
+async function waitForE2eCondition(predicate: () => boolean, timeoutMs = 5_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error('Timed out waiting for E2E main-process condition');
+}
+
+async function runE2eScenario() {
+  if (!win) return;
+  const scenario = process.env.KADOMOCO_E2E_SCENARIO ?? 'window';
+  const base = {
+    windowCount: BrowserWindow.getAllWindows().length,
+    frameless: FRAMELESS_WINDOW,
+    transparent: TRANSPARENT_WINDOW,
+    skipTaskbar: SKIP_TASKBAR,
+    initialSize: win.getSize(),
+    devTools: win.webContents.isDevToolsOpened(),
+  };
+  try {
+    let result: Record<string, unknown> = {};
+    if (scenario === 'window') {
+      result = await evaluateRenderer(`(async()=>{await window.__kadomocoE2e.waitLoaded();return {devButtonVisible:!!document.querySelector('.dev-toggle')}})()`) as Record<string, unknown>;
+    } else if (scenario === 'interaction') {
+      result = await evaluateRenderer(`window.__kadomocoE2e.runInteractionScenario()`) as Record<string, unknown>;
+    } else if (scenario === 'panels') {
+      result = await evaluateRenderer(`window.__kadomocoE2e.runPanelScenario()`) as Record<string, unknown>;
+      result.expandedSize = result.expandedSize ?? win.getSize();
+      result.withinDisplay = screen.getAllDisplays().some((display) => {
+        const b = win!.getBounds();
+        const a = display.workArea;
+        return b.x >= a.x && b.y >= a.y && b.x + b.width <= a.x + a.width && b.y + b.height <= a.y + a.height;
+      });
+    } else if (scenario === 'persist-write') {
+      win.setPosition(64, 72);
+      persistWindowPosition();
+      setAlwaysOnTop(true);
+      result = await evaluateRenderer(`window.__kadomocoE2e.runPersistWriteScenario()`) as Record<string, unknown>;
+    } else if (scenario === 'persist-read') {
+      result = await evaluateRenderer(`window.__kadomocoE2e.runPersistReadScenario()`) as Record<string, unknown>;
+      result.positionRestored = win.getPosition()[0] === 64 && win.getPosition()[1] === 72;
+      result.alwaysOnTopRestored = win.isAlwaysOnTop();
+    } else if (scenario === 'lifecycle') {
+      const id = win.id;
+      win.close();
+      const closeHidWindow = !win.isVisible() && BrowserWindow.getAllWindows().length === 1;
+      win.show();
+      setAlwaysOnTop(!store.get('settings').alwaysOnTop);
+      let beforeQuitObserved = false;
+      app.once('before-quit', (event) => {
+        beforeQuitObserved = true;
+        event.preventDefault();
+      });
+      await evaluateRenderer(`window.kadomoco.quitApp()`);
+      await waitForE2eCondition(() => beforeQuitObserved);
+      result = {
+        closeHidWindow,
+        showReusedWindow: win.id === id && win.isVisible(),
+        trayAlwaysOnTopSynced: win.isAlwaysOnTop() === store.get('settings').alwaysOnTop,
+        quitRequested: beforeQuitObserved && isQuitting,
+      };
+    } else {
+      throw new Error(`Unsupported KADOMOCO_E2E_SCENARIO: ${scenario}`);
+    }
+    console.log(`[kadomoco-e2e-result] ${JSON.stringify({ ok: true, ...base, ...result, consoleErrors: e2eConsoleErrors, unhandledErrors: e2eUnhandledErrors })}`);
+  } catch (error) {
+    console.log(`[kadomoco-e2e-result] ${JSON.stringify({ ok: false, ...base, error: error instanceof Error ? error.message : String(error), consoleErrors: e2eConsoleErrors, unhandledErrors: e2eUnhandledErrors })}`);
   }
 }
 
@@ -279,14 +415,14 @@ function registerIpc() {
     if (!win) return;
     const w = Math.min(WINDOW_MAX, Math.max(WINDOW_MIN, Math.round(width)));
     const h = Math.min(WINDOW_MAX, Math.max(WINDOW_MIN, Math.round(height)));
-    // Keep the bottom-right corner anchored so the pet does not jump.
+    // Keep the bottom-right corner anchored, then clamp to the current display work area.
     const bounds = win.getBounds();
-    win.setBounds({
-      x: bounds.x + bounds.width - w,
-      y: bounds.y + bounds.height - h,
-      width: w,
-      height: h,
-    });
+    const display = screen.getDisplayMatching(bounds);
+    const area = display.workArea;
+    const targetX = Math.min(Math.max(bounds.x + bounds.width - w, area.x), area.x + area.width - w);
+    const targetY = Math.min(Math.max(bounds.y + bounds.height - h, area.y), area.y + area.height - h);
+    win.setBounds({ x: targetX, y: targetY, width: w, height: h });
+    persistWindowPosition();
   });
 
   ipcMain.on('drag:start', () => {
@@ -317,6 +453,7 @@ function registerIpc() {
 }
 
 app.whenReady().then(() => {
+  initializeStores();
   registerIpc();
   createWindow();
   createTray();

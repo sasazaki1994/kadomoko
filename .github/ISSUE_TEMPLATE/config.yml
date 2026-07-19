@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: KadoMoco release checklist
+    url: https://github.com/sasazaki1994/kadomoko/blob/main/docs/release-checklist.md
+    about: Check known release-readiness items before filing duplicate packaging issues.

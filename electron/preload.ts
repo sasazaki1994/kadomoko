@@ -39,3 +39,7 @@ const api: KadomocoApi = {
 };
 
 contextBridge.exposeInMainWorld('kadomoco', api);
+
+if (process.env.KADOMOCO_E2E === '1') {
+  contextBridge.exposeInMainWorld('__kadomocoE2eEnabled', true);
+}

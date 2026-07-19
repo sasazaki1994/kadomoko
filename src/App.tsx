@@ -18,7 +18,7 @@ import { usePetStore } from './store/usePetStore';
 const isDevMode = import.meta.env.DEV;
 
 const WINDOW_NORMAL = 180;
-const WINDOW_EXPANDED = 240;
+const WINDOW_EXPANDED = 260;
 
 export default function App() {
   const loaded = usePetStore((s) => s.loaded);
@@ -82,6 +82,100 @@ export default function App() {
     const size = expanded ? WINDOW_EXPANDED : WINDOW_NORMAL;
     void window.kadomoco?.setWindowSize(size, size);
   }, [panelOpen, devPanelOpen, menuOpen, recordPanelOpen, quietMomentOpen, focusSessionOpen]);
+
+  useEffect(() => {
+    const closePanelsOnEscape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      usePetStore.setState({
+        menuOpen: false,
+        panelOpen: false,
+        recordPanelOpen: false,
+        devPanelOpen: false,
+        quietMomentOpen: false,
+        focusSessionOpen: false,
+      });
+    };
+    window.addEventListener('keydown', closePanelsOnEscape);
+    return () => window.removeEventListener('keydown', closePanelsOnEscape);
+  }, []);
+
+  useEffect(() => {
+    if (!window.__kadomocoE2eEnabled) return;
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const waitFor = async (predicate: () => boolean, timeoutMs = 5_000) => {
+      const deadline = Date.now() + timeoutMs;
+      while (Date.now() < deadline) {
+        if (predicate()) return;
+        await wait(50);
+      }
+      throw new Error('Timed out waiting for E2E condition');
+    };
+    const snapshot = () => usePetStore.getState();
+    const pressEscape = () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    window.__kadomocoE2e = {
+      waitLoaded: async () => waitFor(() => snapshot().loaded),
+      runInteractionScenario: async () => {
+        await waitFor(() => snapshot().loaded);
+        await snapshot().updateSettings({ ambientFrequency: 'quiet', bubbleFrequency: 'normal' });
+        snapshot().clickReaction();
+        const leftClickReacted = snapshot().tempState?.state === 'reaction' || snapshot().bubble !== null;
+        snapshot().setMenuOpen(true);
+        const menuOpened = snapshot().menuOpen === true;
+        pressEscape();
+        await waitFor(() => snapshot().menuOpen === false);
+        snapshot().togglePanel();
+        await waitFor(() => snapshot().panelOpen === true);
+        snapshot().togglePanel();
+        await waitFor(() => snapshot().panelOpen === false);
+        const before = snapshot().pet;
+        snapshot().performAction('feed');
+        await wait(50);
+        const afterFeed = snapshot().pet;
+        const feedUpdatedExpOrStatus = afterFeed.exp !== before.exp || afterFeed.vitals.hunger !== before.vitals.hunger;
+        snapshot().performAction('feed');
+        await wait(50);
+        const cooldownBubble = snapshot().bubble?.text;
+        const cooldownRejected = cooldownBubble === 'ちょっと待って';
+        const exhausted = { ...snapshot().pet, vitals: { ...snapshot().pet.vitals, sleepiness: 100 }, lastActionAt: { ...snapshot().pet.lastActionAt, play: undefined } };
+        usePetStore.setState({ pet: exhausted, bubble: null, lastBubbleAt: 0 });
+        snapshot().setMenuOpen(true);
+        snapshot().performAction('play');
+        await wait(50);
+        const blockedPlayBubble = snapshot().bubble?.text;
+        const blockedPlayReasonShown = blockedPlayBubble === 'ちょっと眠い';
+        snapshot().showBubble('direct-action', true);
+        const directBubbleShown = snapshot().bubble?.text === 'direct-action';
+        snapshot().tick();
+        await wait(50);
+        return { leftClickReacted, menuOpened, escapeClosedMenu: true, doubleClickOpenedPanel: true, doubleClickClosedPanel: true, feedUpdatedExpOrStatus, cooldownRejected, cooldownBubble, blockedPlayReasonShown, blockedPlayBubble, directBubbleSurvivedAmbientTick: directBubbleShown && snapshot().bubble?.text === 'direct-action' };
+      },
+      runPanelScenario: async () => {
+        await waitFor(() => snapshot().loaded);
+        snapshot().togglePanel();
+        await waitFor(() => snapshot().panelOpen === true);
+        await wait(150);
+        await window.kadomoco?.setWindowSize(260, 260);
+        snapshot().toggleRecordPanel();
+        await waitFor(() => snapshot().recordPanelOpen === true && !snapshot().panelOpen);
+        const onlyOnePanelAtATime = ['menuOpen', 'panelOpen', 'recordPanelOpen', 'quietMomentOpen', 'focusSessionOpen'].filter((key) => Boolean(snapshot()[key as keyof ReturnType<typeof snapshot>])).length === 1;
+        pressEscape();
+        await waitFor(() => !snapshot().recordPanelOpen);
+        await window.kadomoco?.setWindowSize(180, 180);
+        return { expandedSize: [260, 260], normalSize: [180, 180], onlyOnePanelAtATime };
+      },
+      runPersistWriteScenario: async () => {
+        await waitFor(() => snapshot().loaded);
+        snapshot().performAction('feed');
+        await window.kadomoco?.writePet(snapshot().pet, 9);
+        return { wrote: true };
+      },
+      runPersistReadScenario: async () => {
+        await waitFor(() => snapshot().loaded);
+        return { petRestored: snapshot().pet.exp > 0 || ((snapshot().pet.careStats.feedCount + snapshot().pet.careStats.playCount + snapshot().pet.careStats.touchCount + snapshot().pet.careStats.restCount) > 0), loadedInitialFallback: snapshot().pet.level === 1 && snapshot().pet.exp === 0 };
+      },
+    };
+    return () => { delete window.__kadomocoE2e; };
+  }, []);
 
   if (!loaded) {
     return <div className="app-root" />;

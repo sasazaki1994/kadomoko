@@ -6,6 +6,7 @@
   transform: translateX(-50%);
   width: 128px;
   height: 128px;
+  contain: layout paint;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -20,11 +21,17 @@
   width: 64px;
   height: 64px;
   background-repeat: no-repeat;
-  background-size: 256px 512px;
+  background-size: calc(var(--sprite-frame-width, 64px) * 4) calc(var(--sprite-frame-height, 64px) * 8);
   image-rendering: pixelated;
   transform: scale(2);
   transform-origin: bottom center;
-  animation: sprite-frames 0.9s steps(4) infinite;
+  animation: sprite-frames var(--sprite-duration, 0.98s) steps(4) infinite;
+  will-change: background-position;
+}
+
+.pet-sprite {
+  --sprite-frame-width: 64px;
+  --sprite-frame-height: 64px;
 }
 
 @keyframes sprite-frames {
@@ -32,7 +39,7 @@
     background-position-x: 0;
   }
   to {
-    background-position-x: -256px;
+    background-position-x: calc(var(--sprite-frame-width, 64px) * -4);
   }
 }
 
@@ -917,4 +924,32 @@
   25% { opacity: 0.75; }
   60% { opacity: 0.6; transform: translate(6px, 26px); }
   100% { opacity: 0; transform: translate(-2px, 46px); }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .pet-sprite,
+  .pet-fallback,
+  .pet-prop,
+  .idle-sway,
+  .effect-wiggle,
+  .effect-hop,
+  .effect-spin,
+  .effect-peek,
+  .effect-curl,
+  .effect-stretch,
+  .effect-gaze,
+  .effect-doze,
+  .discovery-hint,
+  [class^='discovery-'],
+  [class*=' discovery-'],
+  [class^='tiny-'],
+  [class*=' tiny-'],
+  .dream-hint,
+  [class^='dream-'],
+  [class*=' dream-'],
+  .season-mote {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

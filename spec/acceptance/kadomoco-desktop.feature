@@ -332,3 +332,68 @@ Feature: KadoMoco desktop pet
     And focus moves inside the dialog
     And Tab, Shift+Tab, and Escape operate the dialog
     And the countdown has an accessible timer label without second-by-second live announcements
+
+  Scenario: Production sprite sheet is generated from the magenta source image
+    Given the KadoMoco magenta source image is stored as a text-safe Base64 asset
+    When the developer runs "node scripts/prepare-production-sprite-sheet.mjs"
+    Then "src/assets/pet/pixel/kadomoco_sheet.png" is a 256 by 512 RGBA PNG
+    And the sprite sheet contains 4 columns and 8 rows of non-empty 64 by 64 frames
+    And the transparent corners and cells do not show the magenta source background
+    And preview artifacts are generated for visual animation review
+
+  Scenario: Corrupted primary and backup saves fall back safely
+    Given the primary save data is corrupted
+    And the backup save data is corrupted
+    When the app is restarted
+    Then a fresh initial pet state is loaded
+    And the app does not crash
+    And the corrupted files are kept aside when possible
+
+  Scenario: Electron E2E uses a Linux-only sandbox workaround
+    Given KADOMOCO_E2E is set to "1"
+    And the operating system is Linux
+    When Electron E2E launches the production app
+    Then the app is launched with an E2E-only sandbox workaround
+    And normal production launches keep their default sandbox behavior
+    And early Electron exits report stderr and the exit status without waiting for the full scenario timeout
+
+Feature: v0.1.0 RC qualification kit
+  Release managers need reproducible Windows RC artifacts without publishing a GitHub Release.
+
+  Scenario: Manual RC workflow produces qualification artifacts without release side effects
+    Given a maintainer starts the RC Qualification workflow for a branch, commit, or tag
+    When the workflow completes successfully
+    Then it uploads Windows EXE and ZIP artifacts
+    And it uploads SHA-256 checksum files
+    And it uploads an rc-manifest.json with per-artifact hashes and sizes
+    And it uploads a Windows QA result template
+    And it does not create a tag, GitHub Release, issue, or pull request
+
+  Scenario: Windows RC QA helper records warnings without touching user saves
+    Given a tester has extracted an RC artifact directory on Windows
+    When the tester runs scripts/windows-rc-qa.ps1 without administrator privileges
+    Then the script verifies artifact presence, versions, hashes, ZIP contents, and signature status
+    And NotSigned is recorded as a warning for v0.1.0
+    And the script writes a UTF-8 JSON report
+    And the script does not uninstall the app, delete files, or intentionally modify existing save data
+
+  Scenario: Proprietary project licensing is required for release artifacts
+    Given KadoMoco is proprietary and All Rights Reserved
+    And package metadata declares private true and UNLICENSED
+    When the license checker runs in require mode
+    Then it validates the owner, year, project documents, and package metadata
+    And Windows packages contain LICENSE and THIRD_PARTY_NOTICES.md in resources
+    And third-party licenses are not represented as licenses for KadoMoco itself
+
+  Scenario: Asset preparation restores a damaged committed sprite deterministically
+    Given the committed production sprite is missing or damaged
+    And the canonical Base64 sprite source is valid
+    When the developer runs "npm run prepare:assets"
+    Then the production sprite is regenerated from the canonical source
+    And the sprite and generated application icons pass binary validation
+    And the regenerated production sprite is ignored rather than committed as a binary patch
+
+  Scenario: A damaged canonical sprite source stops asset preparation
+    Given the canonical Base64 sprite source is damaged
+    When the developer runs "npm run prepare:sheet"
+    Then asset preparation fails without using the existing production sprite as a fallback

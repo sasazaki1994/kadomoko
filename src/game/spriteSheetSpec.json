@@ -1,0 +1,19 @@
+{
+  "path": "src/assets/pet/pixel/kadomoco_sheet.png",
+  "width": 256,
+  "height": 512,
+  "columns": 4,
+  "rows": 8,
+  "frameWidth": 64,
+  "frameHeight": 64,
+  "states": [
+    "normal",
+    "happy",
+    "hungry",
+    "sleepy",
+    "sleeping",
+    "sulking",
+    "playing",
+    "curious"
+  ]
+}

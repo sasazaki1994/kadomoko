@@ -5,3 +5,11 @@ dist-electron/
 release/
 *.log
 .DS_Store
+artifacts/
+.tmp-sprite-source.png
+
+# Generated release assets
+build/
+
+# Deterministically regenerated from assets/source/*.base64
+src/assets/pet/pixel/kadomoco_sheet.png

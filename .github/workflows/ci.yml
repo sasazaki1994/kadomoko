@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  linux-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run prepare:assets
+      - run: npm run licenses:validate
+      - run: npm run license:project -- --require
+      - run: npm run check:release-version
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
+      - name: Install Electron GUI runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libatk1.0-0 libatk-bridge2.0-0 libcups2 libgtk-3-0 libnss3 libxss1 libasound2t64
+      - name: Electron E2E
+        run: xvfb-run --auto-servernum npm run test:e2e
+
+  windows-quality-package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run prepare:assets
+      - run: npm run licenses:validate
+      - run: npm run license:project -- --require
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
+      - run: npm run test:e2e
+      - run: npm run package:win
+      - run: npm run verify:package:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kadomoco-windows-0.1.0
+          path: |
+            release/KadoMoco-*.exe
+            release/KadoMoco-*.zip
+          if-no-files-found: error
