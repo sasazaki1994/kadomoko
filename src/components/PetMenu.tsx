@@ -29,7 +29,7 @@ export default function PetMenu() {
     blockReason: getCareActionBlockReason(pet, action, now),
   }));
   const contextActions = getAvailableContextActions(pet, now);
-  const tinyPlayActive = pet.tinyPlay.active !== null;
+  const tinyPlayActive = pet.focusSessions.active === null && pet.tinyPlay.active !== null;
 
   return (
     <div className="menu-backdrop" onMouseDown={() => setMenuOpen(false)}>
@@ -83,7 +83,11 @@ export default function PetMenu() {
         <button title="カドモコと3回、ゆっくり呼吸する" onClick={openQuietMoment}>
           いっしょに深呼吸
         </button>
-        <button title="10分または25分、カドモコに静かに見守ってもらう" onClick={openFocusSession}>
+        <button
+          title="10分または25分、カドモコに静かに見守ってもらう"
+          aria-haspopup="dialog"
+          onClick={openFocusSession}
+        >
           {pet.focusSessions.active ? '集中タイマーを見る' : 'いっしょに集中'}
         </button>
         <button

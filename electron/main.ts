@@ -248,6 +248,18 @@ function registerIpc() {
     });
   });
 
+  ipcMain.handle('save:write-focus-completion', (_event, pet: unknown, version: number) => {
+    writeBackup();
+    store.set({
+      pet,
+      version,
+      lastLaunchedAt: Date.now(),
+    });
+    // A completed focus session must not remain active in the fallback copy,
+    // otherwise primary-save recovery could grant its reward a second time.
+    backupStore.set(currentPrimarySave());
+  });
+
   ipcMain.handle('settings:get', () => store.get('settings'));
 
   ipcMain.handle('settings:set-always-on-top', (_event, value: boolean) => {

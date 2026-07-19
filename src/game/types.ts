@@ -416,6 +416,14 @@ export type FocusSession = {
   startedAt: number;
   endsAt: number;
   durationMinutes: FocusSessionDuration;
+  /** Wall-clock checkpoint used to absorb backwards system-clock changes. */
+  lastObservedAt: number;
+};
+
+export type FocusSessionDailyCount = {
+  date: string;
+  completed: number;
+  rewarded: number;
 };
 
 export type FocusSessionState = {
@@ -424,4 +432,6 @@ export type FocusSessionState = {
   active: FocusSession | null;
   completedToday: number;
   rewardedToday: number;
+  /** Bounded local-date history prevents clock rollback from reopening rewards. */
+  recentDailyCounts: FocusSessionDailyCount[];
 };
