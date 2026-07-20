@@ -2,6 +2,22 @@
 
 Use this plan only for Release Candidate qualification. Do not mark an item complete until it was tested on a real Windows environment.
 
+## RC evidence record
+
+- Automated readiness report (`artifacts/release-readiness.md` or workflow artifact URL):
+- RC artifact names:
+- Commit SHA:
+- SHA-256 verification result:
+- Test date:
+- Tester:
+- Windows version:
+- Display scale:
+- Monitor configuration:
+- Failure issue number(s):
+- Screenshot / video / log location:
+
+The automated readiness report and this real-device plan are separate evidence. A passing automated report does not change any manual row from `NOT TESTED`.
+
 ## Result format
 
 For every row record: `PASS`, `FAIL`, `NOT TESTED`, or `NOT APPLICABLE`, plus environment, steps, actual result, evidence, issue number, and notes.

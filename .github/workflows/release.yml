@@ -12,11 +12,13 @@ on:
         type: string
 
 permissions:
-  contents: write # required only to create the draft GitHub Release and upload assets with gh CLI
+  contents: read
 
 jobs:
   windows-draft-release:
     runs-on: windows-latest
+    permissions:
+      contents: write # required only for this job's draft GitHub Release and asset upload
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
@@ -30,17 +32,16 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run check:release-version -- $env:RELEASE_TAG
-      - run: npm run prepare:assets
-      - run: npm run licenses:validate
-      - run: npm run license:project -- --require
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run test
-      - run: npm run build
-      - run: npm run test:e2e
-      - run: npm run package:win
-      - run: npm run verify:package:win
+      - run: npm run release:check:win -- --release-tag $env:RELEASE_TAG
+      - name: Upload release readiness report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kadomoco-draft-release-readiness-${{ github.run_id }}
+          path: |
+            artifacts/release-readiness.json
+            artifacts/release-readiness.md
+          if-no-files-found: warn
       - name: Generate SHA-256 checksums
         shell: pwsh
         run: |
@@ -57,4 +58,6 @@ jobs:
             --notes-file docs/release-notes-v0.1.0.md `
             release/KadoMoco-*.exe `
             release/KadoMoco-*.zip `
-            release/KadoMoco-*.sha256
+            release/KadoMoco-*.sha256 `
+            artifacts/release-readiness.json `
+            artifacts/release-readiness.md

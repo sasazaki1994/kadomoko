@@ -10,7 +10,7 @@ KadoMoco v0.1.0 is the first release-candidate foundation for a tiny desktop-res
 - Save data persistence with backup recovery for safer upgrades and restarts.
 - Production sprite sheet and generated official application icons.
 - Windows distribution as NSIS installer and ZIP package.
-- Automated validation for sprites, icons, unit tests, Electron E2E, and packaged Windows artifacts.
+- A unified release readiness gate with JSON / Markdown evidence for sprites, icons, licenses, version metadata, unit tests, Electron E2E, and packaged Windows artifacts.
 
 ## Installation
 

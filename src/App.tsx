@@ -13,12 +13,10 @@ import QuietMomentPanel from './components/QuietMomentPanel';
 import FocusSessionBadge from './components/FocusSessionBadge';
 import FocusSessionPanel from './components/FocusSessionPanel';
 import { BALANCE } from './game/data/balance';
+import { WINDOW_SPEC } from './shared/windowSpec';
 import { usePetStore } from './store/usePetStore';
 
 const isDevMode = import.meta.env.DEV;
-
-const WINDOW_NORMAL = 180;
-const WINDOW_EXPANDED = 260;
 
 export default function App() {
   const loaded = usePetStore((s) => s.loaded);
@@ -79,7 +77,7 @@ export default function App() {
 
   useEffect(() => {
     const expanded = panelOpen || devPanelOpen || menuOpen || recordPanelOpen || quietMomentOpen || focusSessionOpen;
-    const size = expanded ? WINDOW_EXPANDED : WINDOW_NORMAL;
+    const size = expanded ? WINDOW_SPEC.expanded : WINDOW_SPEC.normal;
     void window.kadomoco?.setWindowSize(size, size);
   }, [panelOpen, devPanelOpen, menuOpen, recordPanelOpen, quietMomentOpen, focusSessionOpen]);
 
@@ -151,17 +149,45 @@ export default function App() {
       },
       runPanelScenario: async () => {
         await waitFor(() => snapshot().loaded);
-        snapshot().togglePanel();
-        await waitFor(() => snapshot().panelOpen === true);
-        await wait(150);
-        await window.kadomoco?.setWindowSize(260, 260);
-        snapshot().toggleRecordPanel();
-        await waitFor(() => snapshot().recordPanelOpen === true && !snapshot().panelOpen);
-        const onlyOnePanelAtATime = ['menuOpen', 'panelOpen', 'recordPanelOpen', 'quietMomentOpen', 'focusSessionOpen'].filter((key) => Boolean(snapshot()[key as keyof ReturnType<typeof snapshot>])).length === 1;
+        await window.kadomoco?.setWindowSize(WINDOW_SPEC.expanded, WINDOW_SPEC.expanded);
+        await waitFor(() => window.innerWidth === WINDOW_SPEC.expanded && window.innerHeight === WINDOW_SPEC.expanded);
+        const panelCases = [
+          { state: { menuOpen: true }, selector: '.pet-menu' },
+          { state: { panelOpen: true }, selector: '.status-panel' },
+          { state: { recordPanelOpen: true }, selector: '.record-panel' },
+          { state: { quietMomentOpen: true }, selector: '.quiet-moment-panel' },
+          { state: { focusSessionOpen: true }, selector: '.focus-session-panel' },
+        ];
+        const panelFits = [];
+        for (const panelCase of panelCases) {
+          usePetStore.setState({
+            menuOpen: false,
+            panelOpen: false,
+            recordPanelOpen: false,
+            quietMomentOpen: false,
+            focusSessionOpen: false,
+            ...panelCase.state,
+          });
+          await waitFor(() => document.querySelector(panelCase.selector) !== null);
+          const rect = document.querySelector(panelCase.selector)!.getBoundingClientRect();
+          panelFits.push({
+            selector: panelCase.selector,
+            fits: rect.left >= 0 && rect.top >= 0 && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight,
+          });
+        }
+        const openPanelKeys = ['menuOpen', 'panelOpen', 'recordPanelOpen', 'quietMomentOpen', 'focusSessionOpen'];
+        const onlyOnePanelAtATime = openPanelKeys.filter((key) => Boolean(snapshot()[key as keyof ReturnType<typeof snapshot>])).length === 1;
         pressEscape();
-        await waitFor(() => !snapshot().recordPanelOpen);
-        await window.kadomoco?.setWindowSize(180, 180);
-        return { expandedSize: [260, 260], normalSize: [180, 180], onlyOnePanelAtATime };
+        await waitFor(() => openPanelKeys.every((key) => !snapshot()[key as keyof ReturnType<typeof snapshot>]));
+        await window.kadomoco?.setWindowSize(WINDOW_SPEC.normal, WINDOW_SPEC.normal);
+        await waitFor(() => window.innerWidth === WINDOW_SPEC.normal && window.innerHeight === WINDOW_SPEC.normal);
+        return {
+          expandedSize: [WINDOW_SPEC.expanded, WINDOW_SPEC.expanded],
+          normalSize: [WINDOW_SPEC.normal, WINDOW_SPEC.normal],
+          onlyOnePanelAtATime,
+          panelFits,
+          allPanelsFit: panelFits.every((entry) => entry.fits),
+        };
       },
       runPersistWriteScenario: async () => {
         await waitFor(() => snapshot().loaded);

@@ -35,7 +35,6 @@ v0.1.0 is prepared before code signing. Windows SmartScreen may warn that the ap
 
 - Windows code signing is not configured for v0.1.0.
 - SmartScreen reputation is not established.
-- Public distribution is blocked until the repository owner chooses a project license.
 - Windows real-device QA is still required for scaling, monitor changes, tray behavior, install, uninstall, and save retention.
 
 ## RC artifact verification
@@ -62,4 +61,4 @@ powershell -ExecutionPolicy Bypass -File scripts/windows-rc-qa.ps1 `
 
 The helper does not require administrator privileges, does not uninstall or delete files, and does not intentionally modify existing saves. `NotSigned` is recorded as a warning for v0.1.0 RC builds; signature states such as hash mismatch or untrusted signatures are failures.
 
-Record manual results with `docs/qa/windows-rc-result-template.md` and make the final release decision with `docs/qa/release-decision-template.md`. Public release remains blocked until the project license is decided and reflected in LICENSE, README, package metadata, and release notes.
+Record manual results with `docs/qa/windows-rc-result-template.md` and make the final release decision with `docs/qa/release-decision-template.md`. The proprietary project license is already recorded in LICENSE, README, package metadata, and release notes; Windows real-device QA remains a separate release decision input.

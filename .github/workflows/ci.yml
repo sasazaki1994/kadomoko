@@ -20,20 +20,21 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run prepare:assets
-      - run: npm run licenses:validate
-      - run: npm run license:project -- --require
-      - run: npm run check:release-version
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run test
-      - run: npm run build
       - name: Install Electron GUI runtime libraries
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb libatk1.0-0 libatk-bridge2.0-0 libcups2 libgtk-3-0 libnss3 libxss1 libasound2t64
-      - name: Electron E2E
-        run: xvfb-run --auto-servernum npm run test:e2e
+      - name: Unified release readiness gate with Electron E2E
+        run: xvfb-run --auto-servernum npm run release:check -- --include-e2e
+      - name: Upload release readiness report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kadomoco-release-readiness-linux
+          path: |
+            artifacts/release-readiness.json
+            artifacts/release-readiness.md
+          if-no-files-found: warn
 
   windows-quality-package:
     runs-on: windows-latest
@@ -46,20 +47,22 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run prepare:assets
-      - run: npm run licenses:validate
-      - run: npm run license:project -- --require
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run test
-      - run: npm run build
-      - run: npm run test:e2e
-      - run: npm run package:win
-      - run: npm run verify:package:win
+      - run: npm run release:check:win
+      - name: Upload release readiness report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kadomoco-release-readiness-windows
+          path: |
+            artifacts/release-readiness.json
+            artifacts/release-readiness.md
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
           name: kadomoco-windows-0.1.0
           path: |
             release/KadoMoco-*.exe
             release/KadoMoco-*.zip
+            artifacts/release-readiness.json
+            artifacts/release-readiness.md
           if-no-files-found: error

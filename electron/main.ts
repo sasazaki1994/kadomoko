@@ -11,10 +11,8 @@ import {
 import Store from 'electron-store';
 import path from 'node:path';
 import fs from 'node:fs';
+import { WINDOW_SPEC } from '../src/shared/windowSpec';
 
-const WINDOW_SIZE = 180;
-const WINDOW_MIN = 120;
-const WINDOW_MAX = 260;
 const SCREEN_MARGIN = 12;
 const FRAMELESS_WINDOW = true;
 const TRANSPARENT_WINDOW = true;
@@ -222,15 +220,15 @@ function setAlwaysOnTop(value: boolean) {
 
 function createWindow() {
   const settings = store.get('settings');
-  const position = resolveInitialPosition(WINDOW_SIZE, WINDOW_SIZE);
+  const position = resolveInitialPosition(WINDOW_SPEC.normal, WINDOW_SPEC.normal);
 
   win = new BrowserWindow({
-    width: WINDOW_SIZE,
-    height: WINDOW_SIZE,
-    minWidth: WINDOW_MIN,
-    minHeight: WINDOW_MIN,
-    maxWidth: WINDOW_MAX,
-    maxHeight: WINDOW_MAX,
+    width: WINDOW_SPEC.normal,
+    height: WINDOW_SPEC.normal,
+    minWidth: WINDOW_SPEC.minimum,
+    minHeight: WINDOW_SPEC.minimum,
+    maxWidth: WINDOW_SPEC.expanded,
+    maxHeight: WINDOW_SPEC.expanded,
     x: position.x,
     y: position.y,
     frame: !FRAMELESS_WINDOW,
@@ -413,8 +411,8 @@ function registerIpc() {
 
   ipcMain.handle('window:set-size', (_event, width: number, height: number) => {
     if (!win) return;
-    const w = Math.min(WINDOW_MAX, Math.max(WINDOW_MIN, Math.round(width)));
-    const h = Math.min(WINDOW_MAX, Math.max(WINDOW_MIN, Math.round(height)));
+    const w = Math.min(WINDOW_SPEC.expanded, Math.max(WINDOW_SPEC.minimum, Math.round(width)));
+    const h = Math.min(WINDOW_SPEC.expanded, Math.max(WINDOW_SPEC.minimum, Math.round(height)));
     // Keep the bottom-right corner anchored, then clamp to the current display work area.
     const bounds = win.getBounds();
     const display = screen.getDisplayMatching(bounds);
