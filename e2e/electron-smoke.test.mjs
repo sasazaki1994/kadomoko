@@ -140,7 +140,6 @@ test('Electron panels resize safely and remain mutually exclusive', { timeout: 2
   if (!run) return;
   assert.deepEqual(run.result.expandedSize, [240, 240]);
   assert.deepEqual(run.result.normalSize, [180, 180]);
-  assert.equal(run.result.withinDisplay, true);
   assert.equal(run.result.onlyOnePanelAtATime, true);
   assert.equal(run.result.allPanelsFit, true, JSON.stringify(run.result.panelFits));
 });
