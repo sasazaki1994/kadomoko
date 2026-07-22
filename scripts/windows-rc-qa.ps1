@@ -9,6 +9,7 @@ $ErrorActionPreference = 'Stop'
 function Add-Check($Name, $Status, $Message, $Data = $null) { [pscustomobject]@{ name=$Name; status=$Status; message=$Message; data=$Data } }
 $checks = New-Object System.Collections.Generic.List[object]
 $failed = $false
+$signatureEvidence = [ordered]@{ signingStatus='not-signed'; signatureStatus='NotSigned'; signerCertificateSubject=$null; signerCertificateThumbprint=$null; signerCertificateNotAfter=$null; timestampPresent=$false }
 function Fail($Name, $Message, $Data=$null) { $script:failed = $true; $script:checks.Add((Add-Check $Name 'FAIL' $Message $Data)) }
 function Pass($Name, $Message, $Data=$null) { $script:checks.Add((Add-Check $Name 'PASS' $Message $Data)) }
 function Warn($Name, $Message, $Data=$null) { $script:checks.Add((Add-Check $Name 'WARN' $Message $Data)) }
@@ -33,8 +34,11 @@ if ($exe) {
   if ($version.ProductName -eq 'KadoMoco') { Pass 'version.productName' 'ProductName is KadoMoco.' } else { Fail 'version.productName' 'ProductName mismatch.' $version.ProductName }
   if ($manifest -and $version.FileVersion -like "$($manifest.version)*") { Pass 'version.fileVersion' 'FileVersion matches manifest version.' $version.FileVersion } else { Fail 'version.fileVersion' 'FileVersion does not match manifest version.' @{ fileVersion=$version.FileVersion; version=$manifest.version } }
   $sig = Get-AuthenticodeSignature $exe.FullName
-  if ($sig.Status -eq 'Valid') { Pass 'signature.status' 'Authenticode signature is valid.' $sig.Status.ToString() }
-  elseif ($sig.Status -eq 'NotSigned') { Warn 'signature.status' 'File is not signed; expected warning for v0.1.0 RC.' $sig.Status.ToString() }
+  $signatureEvidence.signatureStatus = $sig.Status.ToString()
+  if ($sig.SignerCertificate) { $signatureEvidence.signingStatus='signed'; $signatureEvidence.signerCertificateSubject=$sig.SignerCertificate.Subject; $signatureEvidence.signerCertificateThumbprint=$sig.SignerCertificate.Thumbprint; $signatureEvidence.signerCertificateNotAfter=$sig.SignerCertificate.NotAfter.ToUniversalTime().ToString('o'); $signatureEvidence.timestampPresent=($null -ne $sig.TimeStamperCertificate) }
+  if ($sig.Status -eq 'Valid') { Pass 'signature.status' 'Authenticode signature is valid.' $signatureEvidence }
+  elseif ($sig.Status -eq 'NotSigned' -and $env:KADOMOCO_REQUIRE_CODE_SIGNING -eq '1') { Fail 'signature.status' 'A valid signature is required by KADOMOCO_REQUIRE_CODE_SIGNING.' $signatureEvidence }
+  elseif ($sig.Status -eq 'NotSigned') { Warn 'signature.status' 'File is not signed; expected warning for v0.1.0 RC.' $signatureEvidence }
   else { Fail 'signature.status' 'Signature status may indicate corruption or trust failure.' $sig.Status.ToString() }
 }
 if ($zip) {
@@ -65,6 +69,7 @@ $report = [pscustomobject]@{
   powerShellVersion = $PSVersionTable.PSVersion.ToString()
   monitorCount = @(Get-CimInstance -Namespace root\wmi -ClassName WmiMonitorBasicDisplayParams -ErrorAction SilentlyContinue).Count
   artifactDirectory = $artifactDir.Path
+  signing = $signatureEvidence
   checks = $checks
   overallStatus = if ($failed) { 'FAIL' } else { 'PASS_WITH_WARNINGS_ALLOWED' }
 }

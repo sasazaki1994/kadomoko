@@ -40,6 +40,8 @@ npm run dev
 
 統合ゲートは失敗した工程で停止し、後続工程を `not-run` として `artifacts/release-readiness.json` と `artifacts/release-readiness.md` に記録します。自動検証はWindows実機QAを完了扱いにせず、`manualQaStatus` は証拠を伴う手動更新まで `not-tested` のままです。
 
+Electron main process はセーブのJSON安全性・1 MiB上限・save version、設定allowlist、boolean、共有`WINDOW_SPEC`範囲を純粋関数で検証します。不正IPCは短いエラーで拒否され、既存値を変更しません。Zustandの安定した公開入口は`src/store/usePetStore.ts`、構成実装は`createPetStore.ts`、通常保存タイマーの唯一の所有者は`persistence/saveScheduler.ts`です。公開store APIとE2E bridgeは変更していません。
+
 ## 操作
 
 | 操作 | 動作 |
@@ -191,6 +193,15 @@ powershell -ExecutionPolicy Bypass -File scripts/windows-rc-qa.ps1 `
 ```
 
 Add `-LaunchSmoke` only when you want to confirm the ZIP app process starts and does not immediately exit; the script does not force-terminate the app. Use [`docs/qa/windows-rc-test-plan.md`](docs/qa/windows-rc-test-plan.md), [`docs/qa/windows-rc-result-template.md`](docs/qa/windows-rc-result-template.md), and [`docs/qa/release-decision-template.md`](docs/qa/release-decision-template.md) for manual QA and release judgement.
+
+既定30分の非破壊性能測定（管理者権限不要、アプリを終了せず、セーブ非変更）は次の通りです。2時間以上の例では`-DurationMinutes 120`へ変更します。JSON/Markdownは重複しない名前で`qa-results/`へ生成され、CPUとWorking Setの平均・中央値・最小・最大、メモリ差、予期しない終了を記録します。Windows実機以外では未実施として扱います。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/windows-performance-soak.ps1 `
+  -DurationMinutes 30 -SampleIntervalSeconds 10 -OutputDirectory '.\qa-results'
+```
+
+v0.1.0は署名secretが設定されない限り未署名で、SmartScreen警告が発生し得ます。`Get-AuthenticodeSignature .\KadoMoco-0.1.0-x64.exe`とSHA-256 manifestを確認してください。署名必須検証は`$env:KADOMOCO_REQUIRE_CODE_SIGNING='1'`で有効化し、証明書は`CSC_LINK`/`CSC_KEY_PASSWORD`のCI secretsだけに置きます。詳細は[`docs/code-signing-decision.md`](docs/code-signing-decision.md)を参照してください。実機QA JSONを現在commitの証跡として読む場合だけ`KADOMOCO_MANUAL_QA_REPORT`を指定し、性能証跡は`KADOMOCO_PERFORMANCE_REPORT`でレポートへ関連付けます。
 
 ## License
 

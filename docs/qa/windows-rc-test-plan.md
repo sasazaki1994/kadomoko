@@ -31,18 +31,23 @@ For every row record: `PASS`, `FAIL`, `NOT TESTED`, or `NOT APPLICABLE`, plus en
 | Environment | 150% display scale | NOT TESTED |  |  |  |  |  |  |
 | Environment | 1 monitor | NOT TESTED |  |  |  |  |  |  |
 | Environment | Multiple monitors | NOT TESTED |  |  |  |  |  |  |
-| Environment | Laptop-size screen | NOT TESTED |  |  |  |  |  |  |
+| Environment | Negative-coordinate secondary monitor | NOT TESTED |  |  |  |  |  |  |
+| Environment | Switch primary monitor | NOT TESTED |  |  |  |  |  |  |
+| Environment | Change resolution | NOT TESTED |  |  |  |  |  |  |
 | Environment | Changed taskbar position | NOT TESTED |  |  |  |  |  |  |
 | Install | Fresh NSIS install | NOT TESTED |  |  |  |  |  |  |
+| Install | Choose alternate install directory | NOT TESTED |  |  |  |  |  |  |
 | Install | ZIP extract and launch | NOT TESTED |  |  |  |  |  |  |
 | Install | Overwrite install | NOT TESTED |  |  |  |  |  |  |
 | Install | Uninstall | NOT TESTED |  |  |  |  |  |  |
 | Install | Save kept after uninstall | NOT TESTED |  |  |  |  |  |  |
 | Install | ZIP/NSIS save compatibility | NOT TESTED |  |  |  |  |  |  |
 | Basic | Transparent background | NOT TESTED |  |  |  |  |  |  |
+| Basic | Frameless rendering | NOT TESTED |  |  |  |  |  |  |
 | Basic | Initial position | NOT TESTED |  |  |  |  |  |  |
 | Basic | Drag move | NOT TESTED |  |  |  |  |  |  |
 | Basic | Position save | NOT TESTED |  |  |  |  |  |  |
+| Basic | Off-screen recovery | NOT TESTED |  |  |  |  |  |  |
 | Basic | Left click | NOT TESTED |  |  |  |  |  |  |
 | Basic | Double click | NOT TESTED |  |  |  |  |  |  |
 | Basic | Right-click menu | NOT TESTED |  |  |  |  |  |  |
@@ -51,6 +56,7 @@ For every row record: `PASS`, `FAIL`, `NOT TESTED`, or `NOT APPLICABLE`, plus en
 | Basic | Restore from tray | NOT TESTED |  |  |  |  |  |  |
 | Basic | Full exit | NOT TESTED |  |  |  |  |  |  |
 | Basic | Always on top | NOT TESTED |  |  |  |  |  |  |
+| Basic | Expanded panel is 240x240 | NOT TESTED |  |  |  |  |  |  |
 | Game | Food | NOT TESTED |  |  |  |  |  |  |
 | Game | Petting | NOT TESTED |  |  |  |  |  |  |
 | Game | Play | NOT TESTED |  |  |  |  |  |  |
@@ -71,6 +77,7 @@ For every row record: `PASS`, `FAIL`, `NOT TESTED`, or `NOT APPLICABLE`, plus en
 | Save/recovery | 12-hour offline cap | NOT TESTED |  |  |  |  |  |  |
 | Save/recovery | Date change | NOT TESTED |  |  |  |  |  |  |
 | Save/recovery | Resume from sleep | NOT TESTED |  |  |  |  |  |  |
+| Save/recovery | Windows restart | NOT TESTED |  |  |  |  |  |  |
 | Save/recovery | Restart during focus session | NOT TESTED |  |  |  |  |  |  |
 | Display/load | Character outline | NOT TESTED |  |  |  |  |  |  |
 | Display/load | Official icon at small size | NOT TESTED |  |  |  |  |  |  |
@@ -82,3 +89,17 @@ For every row record: `PASS`, `FAIL`, `NOT TESTED`, or `NOT APPLICABLE`, plus en
 | Display/load | Long-running resident use | NOT TESTED |  |  |  |  |  |  |
 | Display/load | Defender | NOT TESTED |  |  |  |  |  |  |
 | Display/load | SmartScreen | NOT TESTED |  |  |  |  |  |  |
+| Display/load | Unsigned disclosure / signed verification | NOT TESTED |  |  |  |  |  |  |
+
+## Repeatable execution
+
+1. Record commit and artifact hashes, run `windows-rc-qa.ps1`, and retain its JSON as automated evidence only.
+2. Execute each applicable row on both Windows 10 and 11 across 100%, 125%, and 150% scale. Use single and multiple monitors, including a negative-coordinate secondary display. Record exact steps and evidence rather than merely checking a box.
+3. Exercise resolution, taskbar position, and primary-display changes before and after restart. For lifecycle tests include sleep/resume, date change, 12-hour offline progression, app and Windows restart.
+4. Test clean/alternate/overwrite NSIS installs, uninstall retention, ZIP launch, and cross-package save compatibility. Observe actual SmartScreen and Defender behavior; a script cannot pass those rows.
+5. Run the 30-minute measurement and a separate >=2-hour soak. CPU average 0–1% and working set <=100 MB are v0.1 diagnostic goals, not one-sample pass/fail thresholds; review sample history and memory growth.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/windows-performance-soak.ps1 -DurationMinutes 30 -SampleIntervalSeconds 10 -OutputDirectory '.\qa-results'
+powershell -ExecutionPolicy Bypass -File scripts/windows-performance-soak.ps1 -DurationMinutes 120 -SampleIntervalSeconds 10 -OutputDirectory '.\qa-results'
+```
