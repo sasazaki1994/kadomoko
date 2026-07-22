@@ -1,6 +1,6 @@
 # v0.1.0 release decision
 
-- Decision: **HOLD / GO**
+- Decision: **NO-GO / GO**
 - Commit and artifact SHA-256:
 - Automated readiness JSON/Markdown:
 - Windows manual QA JSON/Markdown:
@@ -20,9 +20,11 @@
 | NSIS/ZIP lifecycle and compatibility | not-tested | |
 | 30-minute idle measurement | not-run | |
 | >=2-hour soak | not-tested | |
-| Authenticode / unsigned disclosure | not-tested | |
+| Installer and ZIP executable Authenticode / unsigned disclosure | not-tested | |
 | Defender / actual SmartScreen | not-tested | |
 
 ## Issues, mitigations, rollback
 
 List release blockers, accepted risks with owner/date, user-facing unsigned warning, and rollback instructions. Automated success never changes manual rows to passed.
+
+For v0.1.0 and an emergency v0.1.1, unsigned distribution is permitted only from GitHub Releases or another designated official source with both package SHA-256 values and a SmartScreen warning. Do not advise disabling Defender or SmartScreen. Record **NO-GO** while either Windows version, either soak, RC feedback, or commit-matched evidence remains incomplete.

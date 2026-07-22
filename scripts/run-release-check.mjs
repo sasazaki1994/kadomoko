@@ -67,8 +67,8 @@ function hardeningEvidence(cwd, commitSha, env) {
   if (manualQaReportPath) {
     try { manual = JSON.parse(readFileSync(join(cwd, manualQaReportPath), 'utf8')); } catch { manual = null; }
   }
-  const qaCommit = typeof manual?.commit === 'string' ? manual.commit : null;
-  const passedStatuses = ['PASS_WITH_WARNINGS_ALLOWED', 'PASS'];
+  const qaCommit = typeof manual?.commitSha === 'string' ? manual.commitSha : null;
+  const passedStatuses = ['passed', 'PASS_WITH_WARNINGS_ALLOWED', 'PASS'];
   const qaStatus = passedStatuses.includes(manual?.overallStatus) && qaCommit && qaCommit === commitSha ? 'passed' : 'not-tested';
   return {
     ipcValidationStatus: 'implemented',
@@ -79,7 +79,7 @@ function hardeningEvidence(cwd, commitSha, env) {
     manualQaStatus: qaStatus,
     manualQaReportPath,
     manualQaCommitSha: qaCommit,
-    manualQaTestedAt: manual?.timestamp ?? null,
+    manualQaTestedAt: manual?.testedAt ?? null,
     manualQaEnvironmentSummary: manual?.environment ?? null,
     codeSigningPolicyStatus: existsSync(join(cwd, 'docs/code-signing-decision.md')) ? 'documented' : 'missing',
     codeSigningStatus: env.CSC_LINK && env.CSC_KEY_PASSWORD ? 'configured-not-verified' : 'not-signed',
