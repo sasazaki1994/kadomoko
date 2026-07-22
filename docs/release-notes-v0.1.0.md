@@ -20,7 +20,8 @@ See `docs/install-and-uninstall.md` for NSIS and ZIP installation, complete exit
 
 ## Release candidate notes
 
-- v0.1.0 is not code-signed. Windows SmartScreen may show a warning until signing and reputation are established.
+- v0.1.0 is not code-signed. Download only from GitHub Releases or another project-designated official source, verify the published NSIS and ZIP SHA-256 values, and expect that Windows SmartScreen may warn until signing and reputation are established. Do not disable Defender or SmartScreen.
+- Features are frozen through v0.1.1; that maintenance release is limited to critical quality, compatibility, accessibility, and security fixes.
 - The GitHub Release workflow creates a draft release from a matching `v0.1.0` tag; it does not publish automatically.
 - KadoMoco v0.1.0 is proprietary software. Its code and original assets are Copyright © 2026 sasazaki1994. All Rights Reserved.
 - Third-party components remain subject to their respective licenses; those licenses do not apply to KadoMoco's original code or assets.

@@ -10,14 +10,23 @@ Copy this file and the JSON below into `qa-results/`; do not edit the template t
   "testedAt": "",
   "tester": "",
   "environment": { "windowsVersion": "", "displayScale": "", "monitorCount": 0, "monitorLayout": "", "packageKind": "" },
+  "artifacts": {
+    "nsis": { "fileName": "", "sha256": "", "signatureStatus": "not-tested" },
+    "zip": { "fileName": "", "sha256": "", "executableSignatureStatus": "not-tested" }
+  },
   "results": [
     { "id": "display.transparent", "status": "not-tested", "evidence": "", "notes": "" },
-    { "id": "interaction.drag", "status": "not-tested", "evidence": "", "notes": "" },
+    { "id": "display.frameless", "status": "not-tested", "evidence": "screenshots/", "notes": "" },
+    { "id": "interaction.drag-and-position-persistence", "status": "not-tested", "evidence": "", "notes": "" },
+    { "id": "lifecycle.tray-hide-show-quit", "status": "not-tested", "evidence": "", "notes": "" },
+    { "id": "display.scales-100-125-150", "status": "not-tested", "evidence": "screenshots/", "notes": "" },
+    { "id": "display.multi-monitor-restoration", "status": "not-tested", "evidence": "", "notes": "" },
+    { "id": "lifecycle.sleep-resume", "status": "not-tested", "evidence": "", "notes": "" },
     { "id": "lifecycle.long-running", "status": "not-tested", "evidence": "", "notes": "" },
     { "id": "distribution.install", "status": "not-tested", "evidence": "", "notes": "" },
     { "id": "protection.smartscreen", "status": "not-tested", "evidence": "", "notes": "" }
   ],
-  "issues": [],
+  "knownIssues": [],
   "overallStatus": "not-tested"
 }
 ```

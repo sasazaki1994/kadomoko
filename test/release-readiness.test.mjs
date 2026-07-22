@@ -123,6 +123,40 @@ test('returns a null commit when Git is unavailable', () => {
   assert.equal(readCommitSha({ env: {}, spawnCommand: () => { throw new Error('git missing'); } }), null);
 });
 
+test('accepts only commit-matched manual QA evidence and records its environment', async () => {
+  const cwd = releaseWorkspace();
+  try {
+    writeFixture(cwd, 'qa.json', JSON.stringify({
+      commitSha: 'qualified-sha',
+      testedAt: '2026-07-22T01:02:03.000Z',
+      overallStatus: 'passed',
+      environment: { windowsVersion: 'Windows 11', displayScale: '150%', monitorCount: 2 },
+    }));
+    const matched = await runReleaseCheck({
+      cwd,
+      env: { KADOMOCO_MANUAL_QA_REPORT: 'qa.json' },
+      execute: async () => 0,
+      getCommitSha: () => 'qualified-sha',
+      now: fixedClock(),
+    });
+    assert.equal(matched.report.manualQaStatus, 'passed');
+    assert.equal(matched.report.manualQaCommitSha, 'qualified-sha');
+    assert.equal(matched.report.manualQaTestedAt, '2026-07-22T01:02:03.000Z');
+    assert.equal(matched.report.manualQaEnvironmentSummary.monitorCount, 2);
+
+    const mismatched = await runReleaseCheck({
+      cwd,
+      env: { KADOMOCO_MANUAL_QA_REPORT: 'qa.json' },
+      execute: async () => 0,
+      getCommitSha: () => 'different-sha',
+      now: fixedClock(),
+    });
+    assert.equal(mismatched.report.manualQaStatus, 'not-tested');
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 function writeFixture(cwd, file, content) {
   const path = join(cwd, file);
   mkdirSync(dirname(path), { recursive: true });
