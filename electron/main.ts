@@ -12,6 +12,7 @@ import Store from 'electron-store';
 import path from 'node:path';
 import fs from 'node:fs';
 import { WINDOW_SPEC } from '../src/shared/windowSpec';
+import { validateBoolean, validateSavePayload, validateSettings, validateWindowSize } from './ipcValidation';
 
 const SCREEN_MARGIN = 12;
 const FRAMELESS_WINDOW = true;
@@ -374,6 +375,7 @@ function registerIpc() {
   }));
 
   ipcMain.handle('save:write-pet', (_event, pet: unknown, version: number) => {
+    ({ pet, version } = validateSavePayload(pet, version));
     writeBackup();
     store.set({
       pet,
@@ -383,6 +385,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('save:write-focus-completion', (_event, pet: unknown, version: number) => {
+    ({ pet, version } = validateSavePayload(pet, version));
     writeBackup();
     store.set({
       pet,
@@ -397,11 +400,12 @@ function registerIpc() {
   ipcMain.handle('settings:get', () => store.get('settings'));
 
   ipcMain.handle('settings:set-always-on-top', (_event, value: boolean) => {
-    setAlwaysOnTop(Boolean(value));
+    setAlwaysOnTop(validateBoolean(value));
     return store.get('settings').alwaysOnTop;
   });
 
   ipcMain.handle('settings:set', (_event, partial: Record<string, unknown>) => {
+    partial = validateSettings(partial);
     const current = store.get('settings');
     writeBackup();
     store.set('settings', { ...current, ...partial });
@@ -411,8 +415,7 @@ function registerIpc() {
 
   ipcMain.handle('window:set-size', (_event, width: number, height: number) => {
     if (!win) return;
-    const w = Math.min(WINDOW_SPEC.expanded, Math.max(WINDOW_SPEC.minimum, Math.round(width)));
-    const h = Math.min(WINDOW_SPEC.expanded, Math.max(WINDOW_SPEC.minimum, Math.round(height)));
+    const { width: w, height: h } = validateWindowSize(width, height);
     // Keep the bottom-right corner anchored, then clamp to the current display work area.
     const bounds = win.getBounds();
     const display = screen.getDisplayMatching(bounds);

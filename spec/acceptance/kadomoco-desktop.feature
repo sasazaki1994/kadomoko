@@ -397,3 +397,21 @@ Feature: v0.1.0 RC qualification kit
     Given the canonical Base64 sprite source is damaged
     When the developer runs "npm run prepare:sheet"
     Then asset preparation fails without using the existing production sprite as a fallback
+
+  Scenario: Main process rejects untrusted IPC payloads without mutation
+    Given the renderer sends an unsupported setting or an invalid save payload
+    When the main process validates the IPC request
+    Then it returns a short validation error
+    And the existing save and settings remain unchanged
+
+  Scenario: Automated qualification cannot approve manual Windows QA
+    Given no real-device report exists for the current commit
+    When release readiness is generated
+    Then manualQaStatus is "not-tested"
+    And automated checks do not change it to "passed"
+
+  Scenario: Resident performance evidence is non-destructive
+    Given KadoMoco is already running on Windows
+    When the performance soak tool samples it
+    Then JSON and Markdown measurements are written without stopping the app
+    And no save data is changed or deleted
