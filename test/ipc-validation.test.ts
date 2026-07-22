@@ -17,6 +17,8 @@ test('accepts each supported setting and rejects unknown or malformed settings',
     alwaysOnTop: true, volume: 0, statusDisplayMode: 'numbers', ambientFrequency: 'lively', bubbleFrequency: 'off', reduceActivityWhenFullscreen: false,
   });
   code(() => validateSettings({ unknown: true }), 'UNSUPPORTED_SETTING');
+  code(() => validateSettings({ toString: true }), 'UNSUPPORTED_SETTING');
+  code(() => validateSettings({ constructor: true }), 'UNSUPPORTED_SETTING');
   for (const volume of [-1, 101, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) code(() => validateSettings({ volume }), 'INVALID_ARGUMENT');
   code(() => validateSettings({ statusDisplayMode: 'graph' }), 'INVALID_ARGUMENT');
   code(() => validateSettings({ ambientFrequency: 'often' }), 'INVALID_ARGUMENT');

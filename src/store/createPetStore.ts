@@ -491,7 +491,7 @@ export const usePetStore = create<PetStore>((set, get) => {
 
     quitApp: () => {
       cancelScheduledPetSave();
-      void window.kadomoco?.writePet(get().pet, CURRENT_SAVE_VERSION);
+      void window.kadomoco?.writePet(get().pet, CURRENT_SAVE_VERSION).catch(() => undefined);
       window.kadomoco?.quitApp();
     },
 

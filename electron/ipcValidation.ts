@@ -70,7 +70,7 @@ export function validateSettings(value: unknown): ValidatedSettings {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new IpcValidationError('INVALID_ARGUMENT');
   const result: Record<string, unknown> = {};
   for (const key of Object.keys(value)) {
-    if (!(key in settingValidators)) throw new IpcValidationError('UNSUPPORTED_SETTING');
+    if (!Object.prototype.hasOwnProperty.call(settingValidators, key)) throw new IpcValidationError('UNSUPPORTED_SETTING');
     const setting = (value as Record<string, unknown>)[key];
     if (!settingValidators[key as keyof typeof settingValidators](setting)) throw new IpcValidationError('INVALID_ARGUMENT');
     result[key] = setting;

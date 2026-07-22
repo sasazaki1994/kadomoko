@@ -10,6 +10,7 @@ function Add-Check($Name, $Status, $Message, $Data = $null) { [pscustomobject]@{
 $checks = New-Object System.Collections.Generic.List[object]
 $failed = $false
 $signatureEvidence = [ordered]@{ signingStatus='not-signed'; signatureStatus='NotSigned'; signerCertificateSubject=$null; signerCertificateThumbprint=$null; signerCertificateNotAfter=$null; timestampPresent=$false }
+$zipSignatureEvidence = [ordered]@{ signingStatus='not-signed'; signatureStatus='NotSigned'; signerCertificateSubject=$null; signerCertificateThumbprint=$null; signerCertificateNotAfter=$null; timestampPresent=$false }
 function Fail($Name, $Message, $Data=$null) { $script:failed = $true; $script:checks.Add((Add-Check $Name 'FAIL' $Message $Data)) }
 function Pass($Name, $Message, $Data=$null) { $script:checks.Add((Add-Check $Name 'PASS' $Message $Data)) }
 function Warn($Name, $Message, $Data=$null) { $script:checks.Add((Add-Check $Name 'WARN' $Message $Data)) }
@@ -51,25 +52,51 @@ if ($zip) {
     }
   } finally { $archive.Dispose() }
 }
-if ($LaunchSmoke -and $zip) {
-  $extract = Join-Path $env:TEMP "kadomoco-rc-smoke-$([guid]::NewGuid())"
-  Expand-Archive -Path $zip.FullName -DestinationPath $extract
-  $app = Get-ChildItem $extract -Filter 'KadoMoco.exe' -Recurse | Select-Object -First 1
+$zipExtractPath = $null
+if ($zip) {
+  $zipExtractPath = Join-Path $env:TEMP "kadomoco-rc-qa-extract-$([guid]::NewGuid())"
+  Expand-Archive -Path $zip.FullName -DestinationPath $zipExtractPath
+  $zipExe = Get-ChildItem $zipExtractPath -Filter 'KadoMoco.exe' -Recurse | Select-Object -First 1
+  if ($zipExe) {
+    $zipSig = Get-AuthenticodeSignature $zipExe.FullName
+    $zipSignatureEvidence.signatureStatus = $zipSig.Status.ToString()
+    if ($zipSig.SignerCertificate) { $zipSignatureEvidence.signingStatus='signed'; $zipSignatureEvidence.signerCertificateSubject=$zipSig.SignerCertificate.Subject; $zipSignatureEvidence.signerCertificateThumbprint=$zipSig.SignerCertificate.Thumbprint; $zipSignatureEvidence.signerCertificateNotAfter=$zipSig.SignerCertificate.NotAfter.ToUniversalTime().ToString('o'); $zipSignatureEvidence.timestampPresent=($null -ne $zipSig.TimeStamperCertificate) }
+    if ($zipSig.Status -eq 'Valid') { Pass 'zip.signature.status' 'ZIP executable Authenticode signature is valid.' $zipSignatureEvidence }
+    elseif ($zipSig.Status -eq 'NotSigned' -and $env:KADOMOCO_REQUIRE_CODE_SIGNING -eq '1') { Fail 'zip.signature.status' 'A valid signature is required by KADOMOCO_REQUIRE_CODE_SIGNING.' $zipSignatureEvidence }
+    elseif ($zipSig.Status -eq 'NotSigned') { Warn 'zip.signature.status' 'ZIP executable is not signed; expected warning for v0.1.0 RC.' $zipSignatureEvidence }
+    else { Fail 'zip.signature.status' 'ZIP executable signature status may indicate corruption or trust failure.' $zipSig.Status.ToString() }
+  }
+}
+if ($LaunchSmoke -and $zip -and $zipExtractPath) {
+  $app = Get-ChildItem $zipExtractPath -Filter 'KadoMoco.exe' -Recurse | Select-Object -First 1
   if ($app) {
     $p = Start-Process -FilePath $app.FullName -PassThru
     Start-Sleep -Seconds 5
     if ($p.HasExited) { Fail 'launchSmoke.process' 'KadoMoco exited during smoke window.' $p.ExitCode } else { Pass 'launchSmoke.process' 'KadoMoco process stayed running. The script did not terminate it.' $p.Id }
   } else { Fail 'launchSmoke.process' 'KadoMoco.exe not found after ZIP extraction.' }
 }
-$report = [pscustomobject]@{
-  generatedAtUtc = (Get-Date).ToUniversalTime().ToString('o')
-  machineName = if ($IncludeMachineName) { $env:COMPUTERNAME } else { 'redacted' }
+$commit = if ($env:GITHUB_SHA) { $env:GITHUB_SHA } else { try { (git rev-parse HEAD 2>$null) } catch { $null } }
+$timestamp = (Get-Date).ToUniversalTime().ToString('o')
+$environment = @{
   windowsVersion = (Get-CimInstance Win32_OperatingSystem).Caption + ' ' + (Get-CimInstance Win32_OperatingSystem).Version
   displayLanguage = (Get-Culture).Name
   powerShellVersion = $PSVersionTable.PSVersion.ToString()
   monitorCount = @(Get-CimInstance -Namespace root\wmi -ClassName WmiMonitorBasicDisplayParams -ErrorAction SilentlyContinue).Count
+  machineName = if ($IncludeMachineName) { $env:COMPUTERNAME } else { 'redacted' }
+}
+$report = [pscustomobject]@{
+  commit = $commit
+  timestamp = $timestamp
+  environment = $environment
+  generatedAtUtc = $timestamp
+  machineName = $environment.machineName
+  windowsVersion = $environment.windowsVersion
+  displayLanguage = $environment.displayLanguage
+  powerShellVersion = $environment.powerShellVersion
+  monitorCount = $environment.monitorCount
   artifactDirectory = $artifactDir.Path
   signing = $signatureEvidence
+  zipSigning = $zipSignatureEvidence
   checks = $checks
   overallStatus = if ($failed) { 'FAIL' } else { 'PASS_WITH_WARNINGS_ALLOWED' }
 }

@@ -8,7 +8,7 @@ export function schedulePetSave(pet: PetState, delayMs = 400): void {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     saveTimer = null;
-    void window.kadomoco?.writePet(pet, CURRENT_SAVE_VERSION);
+    void window.kadomoco?.writePet(pet, CURRENT_SAVE_VERSION).catch(() => undefined);
   }, delayMs);
 }
 
