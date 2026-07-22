@@ -80,6 +80,19 @@ Feature: KadoMoco desktop pet
     Then a Windows desktop application package is written under "release/"
     And the pet sprite sheet is included in the production build
 
+  Scenario: Incomplete real-device qualification blocks a final release
+    Given Windows 10 or Windows 11 QA or either required performance soak is not complete
+    When the v0.1.0 release decision is recorded
+    Then the decision is "NO-GO"
+    And no v0.1.0 tag or GitHub Release is created
+
+  Scenario: Unsigned release artifacts remain verifiable
+    Given the v0.1.0 NSIS and ZIP artifacts are unsigned
+    When they are offered from an official distribution source
+    Then SHA-256 values are published for both artifacts
+    And the user is warned that SmartScreen may appear
+    And the user is not instructed to disable Defender or SmartScreen
+
   Scenario: Life rhythm changes quiet behavior by time of day
     Given the app is running
     When the local time is late night

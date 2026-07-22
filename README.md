@@ -203,6 +203,8 @@ powershell -ExecutionPolicy Bypass -File scripts/windows-performance-soak.ps1 `
 
 v0.1.0は署名secretが設定されない限り未署名で、SmartScreen警告が発生し得ます。`Get-AuthenticodeSignature .\KadoMoco-0.1.0-x64.exe`とSHA-256 manifestを確認してください。署名必須検証は`$env:KADOMOCO_REQUIRE_CODE_SIGNING='1'`で有効化し、証明書は`CSC_LINK`/`CSC_KEY_PASSWORD`のCI secretsだけに置きます。詳細は[`docs/code-signing-decision.md`](docs/code-signing-decision.md)を参照してください。実機QA JSONを現在commitの証跡として読む場合だけ`KADOMOCO_MANUAL_QA_REPORT`を指定し、性能証跡は`KADOMOCO_PERFORMANCE_REPORT`でレポートへ関連付けます。
 
+公開後からv0.1.1までは機能凍結とし、重大な品質・互換性・セキュリティ修正だけを受け入れます。新機能要求はv0.2向けに分離します。詳細は[`docs/v0.1-maintenance-policy.md`](docs/v0.1-maintenance-policy.md)を参照してください。
+
 ## License
 
 KadoMoco is proprietary software. Copyright © 2026 sasazaki1994. All Rights Reserved. This applies to the game code and original materials, including its characters, artwork, sprites, icons, logos, text, and audio.

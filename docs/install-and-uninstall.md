@@ -29,7 +29,7 @@ To manually remove saves after uninstalling, delete the KadoMoco user data folde
 
 ## SmartScreen and code signing
 
-v0.1.0 is prepared before code signing. Windows SmartScreen may warn that the app is from an unknown publisher. Verify the download source and SHA-256 checksum before running.
+v0.1.0 and an emergency v0.1.1 may be distributed unsigned. Windows SmartScreen may warn that the app is from an unknown publisher. Download only from GitHub Releases or another project-designated official source and verify the SHA-256 checksums for both NSIS and ZIP before running. Do not disable Defender or SmartScreen.
 
 ## Known limitations
 

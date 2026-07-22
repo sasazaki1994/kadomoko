@@ -4,7 +4,9 @@ param(
   [int]$SampleIntervalSeconds = 10,
   [string]$OutputDirectory = '.\qa-results',
   [int]$ProcessId = 0,
-  [string]$CommitSha = ''
+  [string]$CommitSha = '',
+  [string]$OperationsPerformed = 'idle observation',
+  [switch]$IncludedSleepResume
 )
 $ErrorActionPreference = 'Stop'
 if ($DurationMinutes -lt 1 -or $SampleIntervalSeconds -lt 1) { throw 'DurationMinutes and SampleIntervalSeconds must be positive.' }
@@ -32,18 +34,22 @@ $ended = (Get-Date).ToUniversalTime(); $cpuSummary = Get-Summary @($samples | Fo
 $startMemory = if ($samples.Count) { $samples[0].workingSetMb } else { $null }; $endMemory = if ($samples.Count) { $samples[-1].workingSetMb } else { $null }
 $package = Get-Content (Join-Path $PSScriptRoot '..\package.json') -Raw | ConvertFrom-Json
 if (!$CommitSha) { try { $CommitSha = (& git -C (Join-Path $PSScriptRoot '..') rev-parse HEAD).Trim() } catch { $CommitSha = '' } }
+$expectedSampleCount = [math]::Floor(($DurationMinutes * 60) / $SampleIntervalSeconds)
+$missingSampleCount = [math]::Max(0, $expectedSampleCount - $samples.Count)
 $report = [ordered]@{
   schemaVersion=1; appVersion=$package.version; commitSha=$CommitSha; startedAt=$started.ToString('o'); endedAt=$ended.ToString('o')
   durationSeconds=[math]::Round(($ended-$started).TotalSeconds,3); sampleIntervalSeconds=$SampleIntervalSeconds; sampleCount=$samples.Count
+  expectedSampleCount=$expectedSampleCount; missingSampleCount=$missingSampleCount
   cpuPercentMinimum=$cpuSummary.minimum; cpuPercentAverage=$cpuSummary.average; cpuPercentMedian=$cpuSummary.median; cpuPercentMaximum=$cpuSummary.maximum
   workingSetMbMinimum=$memorySummary.minimum; workingSetMbAverage=$memorySummary.average; workingSetMbMedian=$memorySummary.median; workingSetMbMaximum=$memorySummary.maximum
   workingSetMbStart=$startMemory; workingSetMbEnd=$endMemory; workingSetGrowthMb=if ($samples.Count) {[math]::Round($endMemory-$startMemory,3)} else {$null}
   processExitedUnexpectedly=$exited; environment=[ordered]@{ windowsVersion=[Environment]::OSVersion.VersionString; logicalProcessorCount=[Environment]::ProcessorCount; processId=$process.Id }
+  operationsPerformed=$OperationsPerformed; includedSleepResume=[bool]$IncludedSleepResume
   samples=$samples
 }
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $stamp = $started.ToString('yyyyMMdd-HHmmss'); $base = Join-Path $OutputDirectory "performance-$stamp"; $suffix=0
 while ((Test-Path "$base.json") -or (Test-Path "$base.md")) { $suffix++; $base = Join-Path $OutputDirectory "performance-$stamp-$suffix" }
 $report | ConvertTo-Json -Depth 8 | Set-Content "$base.json" -Encoding utf8
-@("# KadoMoco Performance Soak",'',"- Process: $($process.Id)","- Samples: $($samples.Count)","- CPU average / median / max: $($cpuSummary.average)% / $($cpuSummary.median)% / $($cpuSummary.maximum)%","- Working set average / max: $($memorySummary.average) MB / $($memorySummary.maximum) MB","- Working set growth: $($report.workingSetGrowthMb) MB","- Unexpected exit: $exited",'', '> The v0.1 targets are diagnostic goals, not an automatic release gate.') | Set-Content "$base.md" -Encoding utf8
+@("# KadoMoco Performance Soak",'',"- Process: $($process.Id)","- Samples: $($samples.Count) / $expectedSampleCount (missing: $missingSampleCount)","- CPU average / median / max: $($cpuSummary.average)% / $($cpuSummary.median)% / $($cpuSummary.maximum)%","- Working set average / median / max: $($memorySummary.average) MB / $($memorySummary.median) MB / $($memorySummary.maximum) MB","- Working set growth: $($report.workingSetGrowthMb) MB","- Unexpected exit: $exited","- Operations: $OperationsPerformed","- Sleep/resume included: $([bool]$IncludedSleepResume)",'', '> The v0.1 targets are diagnostic goals, not an automatic release gate. Review the sample history for sustained CPU or unbounded memory growth.') | Set-Content "$base.md" -Encoding utf8
 Write-Output "$base.json"; if ($exited) { exit 1 }
