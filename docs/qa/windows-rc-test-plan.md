@@ -93,13 +93,63 @@ For every row record: `PASS`, `FAIL`, `NOT TESTED`, or `NOT APPLICABLE`, plus en
 
 ## Repeatable execution
 
-1. Record commit and artifact hashes, run `windows-rc-qa.ps1`, and retain its JSON as automated evidence only.
+1. Download one successful RC Qualification artifact, verify its commit and package hashes with the commands below, run `windows-rc-qa.ps1`, and retain its JSON as automated evidence only. Do not substitute a local rebuild.
 2. Execute each applicable row on both Windows 10 and 11 across 100%, 125%, and 150% scale. Use single and multiple monitors, including a negative-coordinate secondary display. Record exact steps and evidence rather than merely checking a box.
 3. Exercise resolution, taskbar position, and primary-display changes before and after restart. For lifecycle tests include sleep/resume, date change, 12-hour offline progression, app and Windows restart.
 4. Test clean/alternate/overwrite NSIS installs, uninstall retention, ZIP launch, and cross-package save compatibility. Observe actual SmartScreen and Defender behavior; a script cannot pass those rows.
 5. Run the 30-minute measurement and a separate >=2-hour soak. CPU average 0–1% and working set <=100 MB are v0.1 diagnostic goals, not one-sample pass/fail thresholds; review sample history and memory growth.
 
+### Pin and verify the RC artifact
+
+Set these values from the successful workflow run. `QUALIFIED_SHA` must be the full 40-character commit selected by the workflow input, not a branch name or abbreviated SHA.
+
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/windows-performance-soak.ps1 -DurationMinutes 30 -SampleIntervalSeconds 10 -OutputDirectory '.\qa-results'
-powershell -ExecutionPolicy Bypass -File scripts/windows-performance-soak.ps1 -DurationMinutes 120 -SampleIntervalSeconds 10 -OutputDirectory '.\qa-results'
+$RcRunId = '<RC_RUN_ID>'
+$QualifiedSha = '<QUALIFIED_SHA>'
+New-Item -ItemType Directory -Force '.\artifacts\rc' | Out-Null
+$RcRoot = (Resolve-Path '.\artifacts\rc').Path
+
+gh run download $RcRunId --dir $RcRoot
+$ManifestPath = (Get-ChildItem $RcRoot -Recurse -Filter rc-manifest.json -File -ErrorAction Stop | Select-Object -First 1).FullName
+$ReadinessPath = (Get-ChildItem $RcRoot -Recurse -Filter release-readiness.json -File -ErrorAction Stop | Select-Object -First 1).FullName
+$InstallerPath = (Get-ChildItem $RcRoot -Recurse -Filter 'KadoMoco-0.1.0-x64.exe' -File -ErrorAction Stop | Select-Object -First 1).FullName
+$ZipPath = (Get-ChildItem $RcRoot -Recurse -Filter 'KadoMoco-0.1.0-x64.zip' -File -ErrorAction Stop | Select-Object -First 1).FullName
+$Manifest = Get-Content $ManifestPath -Raw | ConvertFrom-Json
+$Readiness = Get-Content $ReadinessPath -Raw | ConvertFrom-Json
+
+if ($Manifest.commitSha -ne $QualifiedSha) { throw 'RC manifest commit does not match QUALIFIED_SHA.' }
+if ($Readiness.commitSha -ne $QualifiedSha) { throw 'Readiness report commit does not match QUALIFIED_SHA.' }
+foreach ($Path in @($InstallerPath, $ZipPath)) {
+  $Actual = (Get-FileHash $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+  $Sidecar = ((Get-Content "$Path.sha256" -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
+  $Entry = $Manifest.artifacts | Where-Object artifactName -eq (Split-Path $Path -Leaf)
+  if (!$Entry -or $Actual -ne $Sidecar -or $Actual -ne $Entry.sha256.ToLowerInvariant()) {
+    throw "SHA-256 mismatch for $(Split-Path $Path -Leaf)."
+  }
+}
 ```
+
+Also compare the workflow run's `headSha` to `$QualifiedSha` with `gh run view $RcRunId --json headSha,conclusion`. Stop if the conclusion is not `success` or any commit/hash comparison fails.
+
+### Run commit- and artifact-pinned performance measurements
+
+Start the extracted ZIP build (`KadoMoco.exe`) before each command, or pass its process ID with `-ProcessId`. Both measurements must reference the same downloaded RC installer, even when the running process came from its matching ZIP. Preserve the JSON and Markdown outputs under the RC evidence directory.
+
+```powershell
+$ArtifactSource = "GitHub Actions RC Qualification run $RcRunId"
+
+powershell -ExecutionPolicy Bypass -File scripts/windows-performance-soak.ps1 `
+  -DurationMinutes 30 -SampleIntervalSeconds 10 `
+  -CommitSha $QualifiedSha -ArtifactPath $InstallerPath -ArtifactSource $ArtifactSource `
+  -OperationsPerformed 'idle observation' `
+  -OutputDirectory '.\qa-results\v0.1.0-rc.1\performance\30min'
+
+powershell -ExecutionPolicy Bypass -File scripts/windows-performance-soak.ps1 `
+  -DurationMinutes 120 -SampleIntervalSeconds 10 `
+  -CommitSha $QualifiedSha -ArtifactPath $InstallerPath -ArtifactSource $ArtifactSource `
+  -OperationsPerformed 'idle, care actions, panels, tray hide/show, focus session' `
+  -IncludedSleepResume `
+  -OutputDirectory '.\qa-results\v0.1.0-rc.1\performance\120min'
+```
+
+Confirm that each JSON report records the expected `appVersion`, `commitSha`, `artifactFileName`, `artifactSha256`, `artifactSource`, timing and sample counts, CPU and working-set summaries and growth, operations, sleep/resume flag, and `processExitedUnexpectedly`. Missing samples, sustained CPU, memory growth, or an unexpected exit require review and remain `NOT TESTED` or `FAIL` until resolved; the diagnostic goals are not automatic thresholds.
