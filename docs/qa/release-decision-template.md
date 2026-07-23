@@ -27,4 +27,9 @@
 
 List release blockers, accepted risks with owner/date, user-facing unsigned warning, and rollback instructions. Automated success never changes manual rows to passed.
 
-For v0.1.0 and an emergency v0.1.1, unsigned distribution is permitted only from GitHub Releases or another designated official source with both package SHA-256 values and a SmartScreen warning. Do not advise disabling Defender or SmartScreen. Record **NO-GO** while either Windows version, either soak, RC feedback, or commit-matched evidence remains incomplete.
+**Release decision criteria:**
+- Any FAILED automated qualification gate or FAILED Windows device QA gate must be recorded as **NO-GO**. Failure is distinct from "not-run/not-tested" and must not be silently treated as passed.
+- Every applicable gate in the Evidence review table must be either Passed, or have an explicitly approved/documented exception (with owner/date) before a **GO** decision is permitted. This includes successful automated qualification AND reviewed Windows QA evidence.
+- Record **NO-GO** while either Windows version, either soak, RC feedback, or commit-matched evidence remains incomplete.
+
+For v0.1.0 and an emergency v0.1.1, unsigned distribution is permitted only from GitHub Releases or another designated official source with both package SHA-256 values and a SmartScreen warning. Do not advise disabling Defender or SmartScreen.

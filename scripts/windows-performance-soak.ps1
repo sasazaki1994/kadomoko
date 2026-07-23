@@ -6,10 +6,13 @@ param(
   [int]$ProcessId = 0,
   [string]$CommitSha = '',
   [string]$OperationsPerformed = 'idle observation',
-  [switch]$IncludedSleepResume
+  [switch]$IncludedSleepResume,
+  [string]$ArtifactPath = '',
+  [string]$ArtifactSource = ''
 )
 $ErrorActionPreference = 'Stop'
 if ($DurationMinutes -lt 1 -or $SampleIntervalSeconds -lt 1) { throw 'DurationMinutes and SampleIntervalSeconds must be positive.' }
+if ($SampleIntervalSeconds -gt ($DurationMinutes * 60)) { throw 'SampleIntervalSeconds must not exceed the total duration (DurationMinutes * 60 seconds).' }
 
 function Get-Summary([double[]]$Values) {
   if ($Values.Count -eq 0) { return [pscustomobject]@{ minimum=$null; average=$null; median=$null; maximum=$null } }
@@ -34,10 +37,15 @@ $ended = (Get-Date).ToUniversalTime(); $cpuSummary = Get-Summary @($samples | Fo
 $startMemory = if ($samples.Count) { $samples[0].workingSetMb } else { $null }; $endMemory = if ($samples.Count) { $samples[-1].workingSetMb } else { $null }
 $package = Get-Content (Join-Path $PSScriptRoot '..\package.json') -Raw | ConvertFrom-Json
 if (!$CommitSha) { try { $CommitSha = (& git -C (Join-Path $PSScriptRoot '..') rev-parse HEAD).Trim() } catch { $CommitSha = '' } }
+$artifactFileName = ''; $artifactSha256 = ''
+if ($ArtifactPath -and (Test-Path $ArtifactPath)) {
+  $artifactFileName = Split-Path $ArtifactPath -Leaf
+  $artifactSha256 = (Get-FileHash -Path $ArtifactPath -Algorithm SHA256).Hash
+}
 $expectedSampleCount = [math]::Floor(($DurationMinutes * 60) / $SampleIntervalSeconds)
 $missingSampleCount = [math]::Max(0, $expectedSampleCount - $samples.Count)
 $report = [ordered]@{
-  schemaVersion=1; appVersion=$package.version; commitSha=$CommitSha; startedAt=$started.ToString('o'); endedAt=$ended.ToString('o')
+  schemaVersion=1; appVersion=$package.version; commitSha=$CommitSha; artifactFileName=$artifactFileName; artifactSha256=$artifactSha256; artifactSource=$ArtifactSource; startedAt=$started.ToString('o'); endedAt=$ended.ToString('o')
   durationSeconds=[math]::Round(($ended-$started).TotalSeconds,3); sampleIntervalSeconds=$SampleIntervalSeconds; sampleCount=$samples.Count
   expectedSampleCount=$expectedSampleCount; missingSampleCount=$missingSampleCount
   cpuPercentMinimum=$cpuSummary.minimum; cpuPercentAverage=$cpuSummary.average; cpuPercentMedian=$cpuSummary.median; cpuPercentMaximum=$cpuSummary.maximum
@@ -51,5 +59,5 @@ New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $stamp = $started.ToString('yyyyMMdd-HHmmss'); $base = Join-Path $OutputDirectory "performance-$stamp"; $suffix=0
 while ((Test-Path "$base.json") -or (Test-Path "$base.md")) { $suffix++; $base = Join-Path $OutputDirectory "performance-$stamp-$suffix" }
 $report | ConvertTo-Json -Depth 8 | Set-Content "$base.json" -Encoding utf8
-@("# KadoMoco Performance Soak",'',"- Process: $($process.Id)","- Samples: $($samples.Count) / $expectedSampleCount (missing: $missingSampleCount)","- CPU average / median / max: $($cpuSummary.average)% / $($cpuSummary.median)% / $($cpuSummary.maximum)%","- Working set average / median / max: $($memorySummary.average) MB / $($memorySummary.median) MB / $($memorySummary.maximum) MB","- Working set growth: $($report.workingSetGrowthMb) MB","- Unexpected exit: $exited","- Operations: $OperationsPerformed","- Sleep/resume included: $([bool]$IncludedSleepResume)",'', '> The v0.1 targets are diagnostic goals, not an automatic release gate. Review the sample history for sustained CPU or unbounded memory growth.') | Set-Content "$base.md" -Encoding utf8
+@("# KadoMoco Performance Soak",'',"- Artifact: $artifactFileName","- Artifact SHA-256: $artifactSha256","- Artifact source: $ArtifactSource","- Process: $($process.Id)","- Samples: $($samples.Count) / $expectedSampleCount (missing: $missingSampleCount)","- CPU average / median / max: $($cpuSummary.average)% / $($cpuSummary.median)% / $($cpuSummary.maximum)%","- Working set average / median / max: $($memorySummary.average) MB / $($memorySummary.median) MB / $($memorySummary.maximum) MB","- Working set growth: $($report.workingSetGrowthMb) MB","- Unexpected exit: $exited","- Operations: $OperationsPerformed","- Sleep/resume included: $([bool]$IncludedSleepResume)",'', '> The v0.1 targets are diagnostic goals, not an automatic release gate. Review the sample history for sustained CPU or unbounded memory growth.') | Set-Content "$base.md" -Encoding utf8
 Write-Output "$base.json"; if ($exited) { exit 1 }
