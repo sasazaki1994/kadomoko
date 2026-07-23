@@ -12,16 +12,23 @@
 
 | Gate | Status | Evidence / exceptions |
 | --- | --- | --- |
-| Automated Linux/Windows qualification | not-run | |
+| Automated Linux qualification | not-run | |
+| Automated Windows qualification | not-run | |
 | IPC validation | not-run | |
-| Save compatibility (version 9, primary/backup) | not-tested | |
+| Save version 9 compatibility | not-tested | |
+| Primary/backup recovery | not-tested | |
 | Windows 10 matrix | not-tested | |
 | Windows 11 matrix | not-tested | |
 | NSIS/ZIP lifecycle and compatibility | not-tested | |
 | 30-minute idle measurement | not-run | |
 | >=2-hour soak | not-tested | |
-| Installer and ZIP executable Authenticode / unsigned disclosure | not-tested | |
-| Defender / actual SmartScreen | not-tested | |
+| Installer Authenticode / unsigned disclosure | not-tested | |
+| ZIP internal executable Authenticode / unsigned disclosure | not-tested | |
+| Defender | not-tested | |
+| Actual SmartScreen | not-tested | |
+| Commit SHA match | not-run | |
+| Artifact SHA-256 match | not-run | |
+| RC feedback | not-tested | |
 
 ## Issues, mitigations, rollback
 
